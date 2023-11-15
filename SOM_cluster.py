@@ -1,10 +1,10 @@
 import numpy as np
-from minisom import MiniSom  # Assuming you're using MiniSom for SOM implementation
+from minisom import MiniSom  
 import matplotlib.pyplot as plt
 from Gene_Helper import GeneDataManager
 import pandas as pd
 
-# Assume the Gene_Helper class is properly defined and imported
+
 
 class SOMClusterer:
     @staticmethod
@@ -54,20 +54,11 @@ class SOMClusterer:
 
         plt.show()
 
-# Usage
-#gene_manager = GeneDataManager('localhost', 'root', '720027924', 'pineal_data')
-#selected_features = ['embryonic_day_21', 'postnatal_day_5', 'postnatal_day_20', 'postnatal_day_40',
-                     #'embryonic_night_21', 'postnatal_night_5', 'postnatal_night_20', 'postnatal_night_40']
-
-#SOMClusterer.perform_som_clustering(gene_manager, selected_features)
-
-# Assuming gene_manager is an instance of GeneDataManager
 gene_manager = GeneDataManager('localhost', 'root', '720027924', 'pineal_data')
+selected_features = ['embryonic_day_21', 'postnatal_day_5', 'postnatal_day_20', 'postnatal_day_40',
+                     'embryonic_night_21', 'postnatal_night_5', 'postnatal_night_20', 'postnatal_night_40']
 
-# Get the significant expression data using the merged method
-significant_expression = gene_manager.gene_data_manager_merged()
+SOMClusterer.perform_som_clustering(gene_manager, selected_features)
 
-# Analyze the significant data
-gene_manager.analyze_significant_data(significant_expression, gene_manager.fetch_gene_data())
 
 

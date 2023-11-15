@@ -1,0 +1,48 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from Gene_Helper import GeneDataManager
+
+class KMeansClusteringAnalyzer:
+    def __init__(self, gene_helper, num_clusters=4):
+        self.gene_helper = gene_helper
+        self.num_clusters = num_clusters
+
+    def apply_kmeans_clustering(self):
+        significant_data = self.gene_helper.gene_data_manager_merged()
+
+        # Extract x and y values
+        data_values = significant_data[['x_value', 'y_value']].values
+
+        # Random state is a seed value - reproduceable graphs
+        kmeans = KMeans(n_clusters=self.num_clusters, random_state=42)
+        clusters = kmeans.fit_predict(data_values)
+
+        # Add the cluster information to the significant_data DataFrame
+        significant_data['cluster'] = clusters
+
+        # Plot the clustered data
+        self.visualize_clusters(significant_data, kmeans.cluster_centers_)
+
+        return significant_data
+
+    def visualize_clusters(self, significant_data, cluster_centers):
+        plt.figure(figsize=(10, 6))
+        for cluster_id in significant_data['cluster'].unique():
+            cluster_points = significant_data[significant_data['cluster'] == cluster_id]
+            plt.scatter(cluster_points['x_value'], cluster_points['y_value'], label=f'Cluster {cluster_id}')
+
+        # Plot the cluster centers
+        plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], c='black', marker='X', label='Centroids')
+
+        plt.title('K-Means Clustering')
+        plt.xlabel('X Value')
+        plt.ylabel('Y Value')
+        plt.legend()
+        plt.show()
+
+
+gene_helper = GeneDataManager('localhost', 'root', '720027924', 'pineal_data')
+kmeans_analyzer = KMeansClusteringAnalyzer(gene_helper)
+result_data = kmeans_analyzer.apply_kmeans_clustering()

@@ -1,0 +1,45 @@
+from sklearn.cluster import DBSCAN
+import matplotlib.pyplot as plt
+from Gene_Helper import GeneDataManager
+
+class DBSCANAnalyzer:
+    def __init__(self, gene_helper, eps=0.05, min_samples=15):
+        self.gene_helper = gene_helper
+        self.eps = eps
+        self.min_samples = min_samples
+
+    def apply_dbscan(self):
+        significant_data = self.gene_helper.gene_data_manager_merged()
+
+        # Extract x and y values
+        data_values = significant_data[['x_value', 'y_value']].values
+
+        # Apply DBSCAN clustering
+        dbscan = DBSCAN(eps=self.eps, min_samples=self.min_samples)
+        labels = dbscan.fit_predict(data_values)
+
+        # Create a new DataFrame to store the cluster labels
+        clustered_data = significant_data.copy()
+        clustered_data['cluster_label'] = labels
+
+        # Plot the results
+        self.visualize_clusters(clustered_data)
+
+        return clustered_data
+
+    def visualize_clusters(self, clustered_data):
+        # Plot the results
+        plt.scatter(
+            clustered_data['x_value'],
+            clustered_data['y_value'],
+            c=clustered_data['cluster_label'],
+            cmap='viridis'
+        )
+        plt.title('DBSCAN Clustering')
+        plt.xlabel('X Value')
+        plt.ylabel('Y Value')
+        plt.show()
+
+gene_helper = GeneDataManager('localhost', 'root', '720027924', 'pineal_data')
+dbscan_analyzer = DBSCANAnalyzer(gene_helper)
+clustered_data = dbscan_analyzer.apply_dbscan()

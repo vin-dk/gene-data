@@ -1,0 +1,66 @@
+import matplotlib.pyplot as plt
+from sklearn import preprocessing
+import numpy as np
+import pandas as pd
+import mysql.connector
+from scipy.stats import zscore
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import pairwise_distances_argmin_min
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from sklearn import metrics
+from sklearn.cluster import DBSCAN
+from sklearn.metrics import pairwise_distances
+from scipy.spatial.distance import pdist, squareform
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_blobs
+import numpy as np
+from scipy.cluster.hierarchy import dendrogram, linkage
+import skfuzzy as fuzz
+from Gene_Helper import GeneDataManager
+
+class FuzzyCMeansAnalyzer:
+    def __init__(self, gene_helper):
+        self.gene_helper = gene_helper
+
+    def apply_fuzzy_c_means(self):
+        significant_data = self.gene_helper.gene_data_manager_merged()
+
+        # Extract x and y values
+        data_values = significant_data[['x_value', 'y_value']].values.T
+
+        # Apply fuzzy c-means clustering
+        n_clusters = 4  
+        cntr, u, _, _, _, _, _ = fuzz.cluster.cmeans(
+            data_values, n_clusters, 2, error=0.005, maxiter=1000
+        )
+
+        # Assign each data point to the cluster with the highest membership degree
+        significant_data['cluster'] = np.argmax(u, axis=0)
+
+        # Visualize the clusters
+        self.visualize_clusters(significant_data)
+
+        return significant_data
+
+    def visualize_clusters(self, significant_data):
+        fig, ax = plt.subplots()
+        scatter = ax.scatter(
+            significant_data['x_value'],
+            significant_data['y_value'],
+            c=significant_data['cluster'],
+            cmap='rainbow'
+        )
+
+        legend = ax.legend(*scatter.legend_elements(), title="Clusters")
+        ax.add_artist(legend)
+
+        plt.title("Fuzzy Clustering Result")
+        plt.show()
+
+
+gene_helper = GeneDataManager('localhost', 'root', '720027924', 'pineal_data')
+fuzzy_analyzer = FuzzyCMeansAnalyzer(gene_helper)
+result_data = fuzzy_analyzer.apply_fuzzy_c_means()

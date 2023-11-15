@@ -53,18 +53,21 @@ class GeneDataManager:
     def gene_data_manager_merged(self):
         gene_data_list = self.fetch_gene_data()
 
-        x_values = [getattr(gene_data, 'postnatal_day_40') for gene_data in gene_data_list]
-        y_values = [getattr(gene_data, 'postnatal_day_20') for gene_data in gene_data_list]
+        numeric_attributes_day = ['embryonic_day_21', 'postnatal_day_5', 'postnatal_day_20', 'postnatal_day_40']
+        numeric_attributes_night = ['embryonic_night_21', 'postnatal_night_5', 'postnatal_night_20', 'postnatal_night_40']
 
-        group1_avg = self.calculate_average(x_values)
-        group2_avg = self.calculate_average(y_values)
+        x_values_day = [self.calculate_average([getattr(gene_data, attribute) for attribute in numeric_attributes_day]) for gene_data in gene_data_list]
+        y_values_night = [self.calculate_average([getattr(gene_data, attribute) for attribute in numeric_attributes_night]) for gene_data in gene_data_list]
 
-        log_x_values = [self.log_transformation(value) for value in x_values]
-        log_y_values = [self.log_transformation(value) for value in y_values]
+        log_x_values = [self.log_transformation(value) for value in x_values_day]
+        log_y_values = [self.log_transformation(value) for value in y_values_night]
 
-        data = pd.DataFrame({'x_value': log_x_values, 'y_value': log_y_values})
+        gene_names = [gene_data.gene_name for gene_data in gene_data_list]
 
-        return self.significant_expression(data)    
+        data = pd.DataFrame({'gene_name': gene_names, 'x_value': log_x_values, 'y_value': log_y_values})
+        significant_data = self.significant_expression(data)
+
+        return significant_data
     
     def calculate_average(self, values):
         return sum(values) / len(values)
@@ -99,4 +102,3 @@ class GeneDataManager:
     def get_group_values(gene_data_list, group_periods):
         group_values = {period: [getattr(gene_data, period) for gene_data in gene_data_list] for period in group_periods}
         return group_values
-

@@ -1,0 +1,59 @@
+from sklearn.cluster import MeanShift
+import matplotlib.pyplot as plt
+from Gene_Helper import GeneDataManager
+
+class MeanShiftAnalyzer:
+    def __init__(self, gene_helper, bandwidth=0.4):
+        self.gene_helper = gene_helper
+        self.bandwidth = bandwidth
+
+    def apply_mean_shift(self):
+        significant_data = self.gene_helper.gene_data_manager_merged()
+
+        # Extract x and y values
+        data_values = significant_data[['x_value', 'y_value']].values
+
+        # Create a Mean Shift clustering model
+        ms = MeanShift(bandwidth=self.bandwidth)
+
+        # Fit the model to the data
+        ms.fit(data_values)
+
+        # Get the cluster labels and cluster centers
+        labels = ms.labels_
+        cluster_centers = ms.cluster_centers_
+
+        # Create a dictionary to map cluster labels to genes
+        cluster_to_genes = {label: [] for label in set(labels)}
+
+        # Associate each data point with its gene name based on cluster assignment
+        for i, (x, y) in enumerate(data_values):
+            label = labels[i]
+            gene_name = significant_data.iloc[i]['gene_name']  # Access 'gene_name' from DataFrame
+            cluster_to_genes[label].append(gene_name)
+
+        # Print the genes associated with each cluster
+        for label, genes in cluster_to_genes.items():
+            print(f"Cluster {label}: {genes}")
+
+        # Add cluster labels to the DataFrame
+        significant_data['cluster'] = labels
+
+        # Visualize the clusters
+        self.visualize_clusters(data_values, cluster_centers, labels)
+
+        return significant_data
+
+    def visualize_clusters(self, data_values, cluster_centers, labels):
+        # Visualize the clusters
+        plt.figure(figsize=(10, 10))
+        plt.scatter(data_values[:, 0], data_values[:, 1], c=labels, cmap='viridis')
+        plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], marker='x', s=100, c='red')
+        plt.title('Mean Shift Clustering')
+        plt.xlabel('X Value')
+        plt.ylabel('Y Value')
+        plt.show()
+
+gene_helper = GeneDataManager('localhost', 'root', '720027924', 'pineal_data')
+mean_shift_analyzer = MeanShiftAnalyzer(gene_helper)
+clustered_data = mean_shift_analyzer.apply_mean_shift()

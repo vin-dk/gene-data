@@ -1,0 +1,47 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from Gene_Helper import GeneDataManager
+
+class HierarchicalClusteringAnalyzer:
+    def __init__(self, gene_helper, threshold_distance=2):
+        self.gene_helper = gene_helper
+        self.threshold_distance = threshold_distance
+
+    def apply_hierarchical_clustering(self):
+        significant_data = self.gene_helper.gene_data_manager_merged()
+
+        # Extract x and y values
+        data_values = significant_data[['x_value', 'y_value']].values
+
+        # Perform hierarchical clustering
+        linkage_matrix = linkage(data_values, method='ward')
+
+        # Use fcluster to extract clusters
+        clusters = fcluster(linkage_matrix, self.threshold_distance, criterion='distance')
+
+        # Add the cluster information to the significant_data DataFrame
+        significant_data['cluster'] = clusters
+
+        # Plot the clustered data
+        self.visualize_clusters(significant_data)
+
+        return significant_data
+
+    def visualize_clusters(self, significant_data):
+        plt.figure(figsize=(10, 6))
+        for cluster_id in significant_data['cluster'].unique():
+            cluster_points = significant_data[significant_data['cluster'] == cluster_id]
+            plt.scatter(cluster_points['x_value'], cluster_points['y_value'], label=f'Cluster {cluster_id}')
+
+        plt.title('Hierarchical Clustering')
+        plt.xlabel('X Value')
+        plt.ylabel('Y Value')
+        plt.legend()
+        plt.show()
+
+
+gene_helper = GeneDataManager('localhost', 'root', '720027924', 'pineal_data')
+hierarchical_analyzer = HierarchicalClusteringAnalyzer(gene_helper)
+result_data = hierarchical_analyzer.apply_hierarchical_clustering()
