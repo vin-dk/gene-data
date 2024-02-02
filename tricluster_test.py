@@ -13,19 +13,22 @@ df = pd.read_excel(excel_file)
 
 # each column of excel sheet is an array, right now it is defined as "first 50 rows of column 0, first 50 rows of column 1..." 
 # this follows the correct formatting for our purposes
-gene_ref = df.iloc[0:50, 0].tolist()
-zero_1 = df.iloc[0:50, 1].tolist()
-zero_2 = df.iloc[0:50, 2].tolist()
-zero_3 = df.iloc[0:50, 3].tolist()
-three_1 = df.iloc[0:50, 4].tolist()
-three_2 = df.iloc[0:50, 5].tolist()
-three_3 = df.iloc[0:50, 6].tolist()
-six_1 = df.iloc[0:50, 7].tolist()
-six_2 = df.iloc[0:50, 8].tolist()
-six_3 = df.iloc[0:50, 9].tolist()
-twelve_1 = df.iloc[0:50, 10].tolist()
-twelve_2 = df.iloc[0:50, 11].tolist()
-twelve_3 = df.iloc[0:50, 12].tolist()
+
+num_genes = 50 
+
+gene_ref = df.iloc[0:num_genes, 0].tolist()
+zero_1 = df.iloc[0:num_genes, 1].tolist()
+zero_2 = df.iloc[0:num_genes, 2].tolist()
+zero_3 = df.iloc[0:num_genes, 3].tolist()
+three_1 = df.iloc[0:num_genes, 4].tolist()
+three_2 = df.iloc[0:num_genes, 5].tolist()
+three_3 = df.iloc[0:num_genes, 6].tolist()
+six_1 = df.iloc[0:num_genes, 7].tolist()
+six_2 = df.iloc[0:num_genes, 8].tolist()
+six_3 = df.iloc[0:num_genes, 9].tolist()
+twelve_1 = df.iloc[0:num_genes, 10].tolist()
+twelve_2 = df.iloc[0:num_genes, 11].tolist()
+twelve_3 = df.iloc[0:num_genes, 12].tolist()
 
 # list of relevant arrays
 data_points = [zero_1, zero_2, zero_3, three_1, three_2, three_3, six_1, six_2, six_3, twelve_1, twelve_2, twelve_3]
@@ -45,6 +48,10 @@ gene_looper = 0 #these vars are for use in the perfect tricluster, check that cl
 exp_looper = 0
 
 time_looper = 0 
+
+exp_index = 0
+
+time_index = 0 # these are used to determine correct arrays
 
 # these are values recorded for each gene_ref above. so we can consider it in this way that [1,3,1] refers to [gene 1, condition 3, zero hour] or [i,j,k) and so on
 # I will be closely following the method outlined in the email, hand calculations should be easy to check logic
@@ -159,10 +166,18 @@ for i, mean_obj in enumerate(mean_objects_tri):
     print(f"Mean_{i+1} tri value: {mean_obj.value}")
     
 
-# PART 2 - PERFECT SHIFTING FACTORS
+# PART 2 - PERFECT SHIFTING FACTORS AND RESIDUALS
 # Idea is to compute the perfect shifting tricluster value, per element, using the formula provided. Because of how the values are stored, it should be relatively easy to compute in a sequential format
 
 tricluster_object_elements = []
+
+
+class Gene:
+    def __init__(self,gene_number, r_mean_score):
+        self.gene = gene_number
+        self.r_mean = r_mean_score
+        
+gene_list = []
 
 class PerfectTricluster:
     def __init__(self, gene_index, exp_index, time_index):
@@ -173,6 +188,9 @@ class PerfectTricluster:
         self.time = time_index
         self.tri_mean = mean_objects_tri[0].value
         self.perfect_value = None
+        self.real_value = None
+        self.array_index = None
+        self.r = None
     
     def compute_perfect_elements(self):
         # (m i J K + m I j K + m I J k - 2m I J K )
@@ -180,9 +198,74 @@ class PerfectTricluster:
         exp = mean_objects_exp[self.exp]
         time = mean_objects_time[self.time]
         self.perfect_value = (gene.value + exp.value + time.value - (2*self.tri_mean))
-
-
-for gene_looper in range(10): # please note that the index is one less than expected due to starting at 0 
+    
+    def compute_r(self):
+        # compare calculated value against real
+        # since we already have indexes accounted for, we can use those to access the correct arrays
+        if self.time == 0:
+            if self.exp == 0:
+                self.array_index = 0
+            elif self.exp == 1:
+                self.array_index = 1
+            elif self.exp == 2:
+                self.array_index = 2
+        elif self.time == 1:
+            if self.exp == 0:
+                self.array_index = 3
+            elif self.exp == 1:
+                self.array_index = 4
+            elif self.exp == 2:
+                self.array_index = 5
+        elif self.time == 2:
+            if self.exp == 0:
+                self.array_index = 6 # this is incredibly ugly, but works
+            elif self.exp == 1:
+                self.array_index = 7
+            elif self.exp == 2:
+                self.array_index = 8
+        elif self.time == 3:
+            if self.exp == 0:
+                self.array_index = 9
+            elif self.exp == 1:
+                self.array_index = 10
+            elif self.exp == 2:
+                self.array_index = 11
+        
+        target_array = data_points[self.array_index]
+        
+        self.real_value = target_array[self.gene]
+        
+        self.r = self.real_value - self.perfect_value
+    
+    @staticmethod
+    def createGene(tri_value_array):
+        # our objects are still stored in (i,j,k format. We need them to be a gene object with relevant info) 
+        # every gene has 12 entries. So we can compute the r mean easily by using this fact
+        j = 0
+        running_sum = 0
+        gene_num = 1
+        i = 0
+        while i < ((12*num_genes) + 1):
+            print(i,j)
+            if j < 12:
+                if i == ((12*num_genes)):
+                    break
+                print(f"Calculation was {running_sum} + {tri_value_array[i].r}")
+                running_sum += tri_value_array[i].r
+                print(f"iter : {i} with j : {j}")
+                print(f"Index is : {tri_value_array[i].gene},{tri_value_array[i].exp},{tri_value_array[i].time} at sum: {running_sum}")
+                j += 1
+                i += 1
+            else: 
+                r_mean = running_sum/12 
+                gene = Gene(gene_num,r_mean)
+                gene_list.append(gene)
+                j = 0
+                running_sum = 0
+                gene_num += 1
+                
+                
+for gene_looper in range(num_genes): # please note that the index is one less than expected due to starting at 0 
     # operates as (0,0,0) , (0,0,1) , (0,0,2) .... (0,1,0), (0,1,1) ... (1,0,0) ... and so on 
     exp_looper = 0
     
@@ -192,6 +275,7 @@ for gene_looper in range(10): # please note that the index is one less than expe
         while time_looper < 4:
             tri_object = PerfectTricluster(gene_looper, exp_looper, time_looper)
             tri_object.compute_perfect_elements()
+            tri_object.compute_r()
             tricluster_object_elements.append(tri_object)
             time_looper += 1
             
@@ -201,15 +285,46 @@ for gene_looper in range(10): # please note that the index is one less than expe
             break
         
         time_looper == 0
+        
+    
+#for tri in tricluster_object_elements: 
+    #gene_print = tri.gene + 1
+    #exp_print = tri.exp + 1
+    #time_print = tri.time * 3
+    
+    #if time_print == 9:
+        #time_print = 12
 
-for tri in tricluster_object_elements: # yes, 9 is supposed to be 12. This is just a quick and simple way of showing it
-    print (f"Gene: {tri.gene + 1}, Exp: {tri.exp + 1}, Time: {tri.time * 3} with perfect value: {tri.perfect_value}")
+    #print (f"Gene: {gene_print}, Exp: {exp_print}, Time: {time_print} with perfect value: {tri.perfect_value} and residue score: {tri.r}")
+    
+PerfectTricluster.createGene(tricluster_object_elements)
+
+for gene in gene_list:
+    print(f"Gene: {gene.gene} and r mean: {gene.r_mean}")
     
 
-# residuals calculated (0,0,0)
+# residuals calculated in (0,0,0)
 # original minus perfect tricluster value calculated
 
-# s for the tricluster is calculated : 1/IJK * sum(ALL RESIDUALS)^2, where each residual is squared
+# s for the tricluster is calculated : 1/IJK * sum(ALL RESIDUALS)^2, where each residual is squared -- THIS IS NOT IMPLEMENTED BECAUSE IT IS NOT IMPORTANT YET
+
+# PART 3 GENE POOL 
+
+# idea is to make blocks. I will allow user input for block selection. Follows this basic procedure
+# Randomly generate number (with min >~5 max<~50% (??), that is how much goes into block 1. Take the mean of all r scores per gene, whose M(gene) governs that gene. 
+# Select a threshold that will allow 75% (??) of values to remain in block. I don't know if this is worthwhile yet. Speak with Sudipta. Do note, some r scores negative, consider how to handle this.
+# Any M(gene r scores)< threshold then gene is REMOVED from block, and added back to gene pool (these can both be arrays), the array storing blocks can be array of arrays
+# Once this is done, block contains genes with r scores allowing for 75% to remain 
+# this block is finalized, goes into block array
+# Randomly generate new number, repeat the block process
+# Once the amount of genes left falls below 15% (??), assign all remaining to the last block. This is to prevent blocks of only 2-3 genes. This can be changed.
+# Process ends under 2 conditions : the final block has NO genes return to pool (skipping the step above), or the step above is executed, and the genes there are not returned to pool regardless of threshold
+
+class Block: 
+    def __init__(self, gene_amount):
+        self.self = self.self
+
+# PROBLEM : The machine seems INCREDIBLY PRECISE. Like remarkably so. Some of the sums are different numbers but lead to the EXACT same answer. Some are off by very very little. This makes sense if its the same machine
 
         
 
