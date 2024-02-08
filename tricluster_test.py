@@ -14,7 +14,10 @@ df = pd.read_excel(excel_file)
 # each column of excel sheet is an array, right now it is defined as "first 50 rows of column 0, first 50 rows of column 1..." 
 # this follows the correct formatting for our purposes
 
-num_genes = 50 
+algorithm_1 = False
+algorithm_2 = True
+
+num_genes = 54646
 
 gene_ref = df.iloc[0:num_genes, 0].tolist()
 zero_1 = df.iloc[0:num_genes, 1].tolist()
@@ -56,7 +59,6 @@ time_index = 0 # these are used to determine correct arrays
 # these are values recorded for each gene_ref above. so we can consider it in this way that [1,3,1] refers to [gene 1, condition 3, zero hour] or [i,j,k) and so on
 # I will be closely following the method outlined in the email, hand calculations should be easy to check logic
 
-# PART 1 - MEAN CALC
 
 for data_point in data_points: # amount of elements in whole matrix, this can be changed if it is supposed to be amount of elements present in the calculation 
     for i in range(len(data_point)):
@@ -124,61 +126,12 @@ class MeanObject:
         for data_point in data_points:
             sum_val = sum(data_point) + sum_val
         self.value = (1/((element_count)*(time_amount)*(exp_amount))) * sum_val
-         
-            
-# GENE MEAN (i)           
-for i in range (num_iterations_gene):
-    # create mean objects, each representing a gene. For now it simply enumerates 1,2,3... which is associated with corresponding gene. In actual code it would be well defined
-    mean_obj = MeanObject(iteration = i)
-    mean_obj.assign_value_gene(data_points)
-    mean_objects_gene.append(mean_obj)
-
-for i, mean_obj in enumerate(mean_objects_gene):
-    # this should print out the mean value associated with each mean object (in format mean_i = M(gene_i))
-    print(f"Mean_{i+1} gene value: {mean_obj.value}")
-    
-
-# EXP MEAN (j)
-for i in range (num_iterations_exp):
-    mean_obj = MeanObject(iteration = i) 
-    mean_obj.assign_value_exp(data_points)
-    mean_objects_exp.append(mean_obj)
-    
-for i, mean_obj in enumerate(mean_objects_exp):
-    print(f"Mean_{i+1} exp value: {mean_obj.value}")
-    
-
-# TIME MEAN (k)
-for i in range (num_iterations_time):
-    mean_obj = MeanObject(iteration = i) 
-    mean_obj.assign_value_time(data_points)
-    mean_objects_time.append(mean_obj)
-    
-for i, mean_obj in enumerate(mean_objects_time):
-    print(f"Mean_{i+1} time value: {mean_obj.value}")
-    
-# TRICLUSTER MEAN (ijk)
-mean_obj = MeanObject(iteration = 0)
-mean_obj.assign_value_tri(data_points)
-mean_objects_tri.append(mean_obj)
-
-for i, mean_obj in enumerate(mean_objects_tri):
-    print(f"Mean_{i+1} tri value: {mean_obj.value}")
-    
-
-# PART 2 - PERFECT SHIFTING FACTORS AND RESIDUALS
-# Idea is to compute the perfect shifting tricluster value, per element, using the formula provided. Because of how the values are stored, it should be relatively easy to compute in a sequential format
-
-tricluster_object_elements = []
-
-
-class Gene:
+        
+class GeneRes:
     def __init__(self,gene_number, r_mean_score):
         self.gene = gene_number
         self.r_mean = r_mean_score
         
-gene_list = []
-
 class PerfectTricluster:
     def __init__(self, gene_index, exp_index, time_index):
         # gene, exp, time is (i,j,k) whose value is computed using the formula
@@ -250,21 +203,69 @@ class PerfectTricluster:
             if j < 12:
                 if i == ((12*num_genes)):
                     break
-                print(f"Calculation was {running_sum} + {tri_value_array[i].r}")
+                #print(f"Calculation was {running_sum} + {tri_value_array[i].r}")
                 running_sum += tri_value_array[i].r
-                print(f"iter : {i} with j : {j}")
-                print(f"Index is : {tri_value_array[i].gene},{tri_value_array[i].exp},{tri_value_array[i].time} at sum: {running_sum}")
+                #print(f"iter : {i} with j : {j}")
+                #print(f"Index is : {tri_value_array[i].gene},{tri_value_array[i].exp},{tri_value_array[i].time} at sum: {running_sum}")
                 j += 1
                 i += 1
             else: 
                 r_mean = running_sum/12 
-                gene = Gene(gene_num,r_mean)
+                gene = GeneRes(gene_num,r_mean)
                 gene_list.append(gene)
                 j = 0
                 running_sum = 0
                 gene_num += 1
-                
-                
+         
+# PART 1 - MEAN CALC
+
+# GENE MEAN (i)           
+for i in range (num_iterations_gene):
+    # create mean objects, each representing a gene. For now it simply enumerates 1,2,3... which is associated with corresponding gene. In actual code it would be well defined
+    mean_obj = MeanObject(iteration = i)
+    mean_obj.assign_value_gene(data_points)
+    mean_objects_gene.append(mean_obj)
+
+for i, mean_obj in enumerate(mean_objects_gene):
+    # this should print out the mean value associated with each mean object (in format mean_i = M(gene_i))
+    print(f"Mean_{i+1} gene value: {mean_obj.value}")
+    
+
+# EXP MEAN (j)
+for i in range (num_iterations_exp):
+    mean_obj = MeanObject(iteration = i) 
+    mean_obj.assign_value_exp(data_points)
+    mean_objects_exp.append(mean_obj)
+    
+for i, mean_obj in enumerate(mean_objects_exp):
+    print(f"Mean_{i+1} exp value: {mean_obj.value}")
+    
+
+# TIME MEAN (k)
+for i in range (num_iterations_time):
+    mean_obj = MeanObject(iteration = i) 
+    mean_obj.assign_value_time(data_points)
+    mean_objects_time.append(mean_obj)
+    
+for i, mean_obj in enumerate(mean_objects_time):
+    print(f"Mean_{i+1} time value: {mean_obj.value}")
+    
+# TRICLUSTER MEAN (ijk)
+mean_obj = MeanObject(iteration = 0)
+mean_obj.assign_value_tri(data_points)
+mean_objects_tri.append(mean_obj)
+
+for i, mean_obj in enumerate(mean_objects_tri):
+    print(f"Mean_{i+1} tri value: {mean_obj.value}")
+    
+
+# PART 2 - PERFECT SHIFTING FACTORS AND RESIDUALS
+# Idea is to compute the perfect shifting tricluster value, per element, using the formula provided. Because of how the values are stored, it should be relatively easy to compute in a sequential format
+
+tricluster_object_elements = []
+
+gene_list = []
+                       
 for gene_looper in range(num_genes): # please note that the index is one less than expected due to starting at 0 
     # operates as (0,0,0) , (0,0,1) , (0,0,2) .... (0,1,0), (0,1,1) ... (1,0,0) ... and so on 
     exp_looper = 0
@@ -297,10 +298,12 @@ for gene_looper in range(num_genes): # please note that the index is one less th
 
     #print (f"Gene: {gene_print}, Exp: {exp_print}, Time: {time_print} with perfect value: {tri.perfect_value} and residue score: {tri.r}")
     
-PerfectTricluster.createGene(tricluster_object_elements)
+if algorithm_1 :
+    
+    PerfectTricluster.createGene(tricluster_object_elements)
 
-for gene in gene_list:
-    print(f"Gene: {gene.gene} and r mean: {gene.r_mean}")
+    for gene in gene_list:
+        print(f"Gene: {gene.gene} and r mean: {gene.r_mean}")
     
 
 # residuals calculated in (0,0,0)
@@ -310,33 +313,63 @@ for gene in gene_list:
 
 # PART 3 GENE POOL 
 
-# idea is to make blocks. I will allow user input for block selection. Follows this basic procedure
-# Randomly generate number (with min >~5 max<~50% (??), that is how much goes into block 1. Take the mean of all r scores per gene, whose M(gene) governs that gene. 
-# Select a threshold that will allow 75% (??) of values to remain in block. I don't know if this is worthwhile yet. Speak with Sudipta. Do note, some r scores negative, consider how to handle this.
-# Any M(gene r scores)< threshold then gene is REMOVED from block, and added back to gene pool (these can both be arrays), the array storing blocks can be array of arrays
-# Once this is done, block contains genes with r scores allowing for 75% to remain 
-# this block is finalized, goes into block array
-# Randomly generate new number, repeat the block process
-# Once the amount of genes left falls below 15% (??), assign all remaining to the last block. This is to prevent blocks of only 2-3 genes. This can be changed.
-# Process ends under 2 conditions : the final block has NO genes return to pool (skipping the step above), or the step above is executed, and the genes there are not returned to pool regardless of threshold
+# idea is to make blocks. Follows this basic procedure: 
+# start with gene 1 at (i,j,k) (1,1,1), compute shifting values ai + bj + ck + s. Using this, we generate a range of possible values, where the original value is the lower bound for for the range. So it may
+# be : {12.5 - 15.5} for example. Then, iterate through ALL (i,j,k), any in range are assigned to that block, any out of range are excluded. Repeat this process with the out of range values, starting at
+# first {i,j,k} there. once the generated range is produced, do the process again, which is block 2. Each block is an object with associated (i,j,k) values. the last 50 or so genes that are unrepresented,
+# can make up the last block
+# for the range of possible values, I will consider the range to be between the original value and the absolute value of the residual. So we will compute perfect tricluster (i,j,k) then calc residual
+# the range will then be original(i,j,k) - perfect(i,j,k) 
 
 class Block: 
-    def __init__(self, gene_amount):
+    def __init__(self, block):
         self.self = self.self
-
-# PROBLEM : The machine seems INCREDIBLY PRECISE. Like remarkably so. Some of the sums are different numbers but lead to the EXACT same answer. Some are off by very very little. This makes sense if its the same machine
-
+        self.block = block
         
+        
+# we already have an array instatiated : tricluster_object_elements that has objects that have real value, r value, and indexing associated with it. The first element should be (0,0,0), so we'll start
+# there, in this way, we can see blocks as just collections of these objects, because all their information is already self contained
 
-
-
-
-
-
-
-
-
-
-
-
-
+if algorithm_2:
+    
+    blocks_done = False # all blocks assigned
+    
+    left_over = [] # elements not fitting into block
+    
+    all_blocks = []
+    
+    constant = 0 # this can be changed but 0 for now
+    
+    block_elements = tricluster_object_elements # original full (i,j,k) list
+    
+    # IDEA IS TO REASSIGN BLOCK ELEMENTS TO ONES NOT FITTING, WHILE ASSIGNING BLOCK OBJECT TO ONES THAT DO FIT
+    
+    while not blocks_done:
+        
+        block = [] # a singular block 
+        
+        for tri in block_elements:
+            
+            block_start = block_elements[0] # start up with first element
+            lower_bound = block_start.real_value
+            upper_bound = (block_start.real_value + (abs(block_start.r))) + constant             
+            
+            if lower_bound <= target <= upper_bound:
+                block.append(tri)
+            else:
+                left_over.append(tri)
+        
+        block_instance = Block(block)
+        
+        all_blocks.append(block_instance)
+        
+        if len(left_over) <= 100: 
+            for instance in left_over:
+                block.append(instance)
+                block_instance = Block(block)
+                all_blocks.append(block_instance)
+                blocks_done = True
+                
+        else:
+            block_elements = left_over
+        
