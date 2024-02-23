@@ -17,7 +17,7 @@ df = pd.read_excel(excel_file)
 algorithm_1 = False
 algorithm_2 = True
 
-num_genes = 54646
+num_genes = 4000
 
 gene_ref = df.iloc[0:num_genes, 0].tolist()
 zero_1 = df.iloc[0:num_genes, 1].tolist()
@@ -137,6 +137,7 @@ class PerfectTricluster:
         # gene, exp, time is (i,j,k) whose value is computed using the formula
         # this represents a single element
         self.gene = gene_index
+        self.id = gene_ref[gene_index]
         self.exp = exp_index
         self.time = time_index
         self.tri_mean = mean_objects_tri[0].value
@@ -321,55 +322,186 @@ if algorithm_1 :
 # for the range of possible values, I will consider the range to be between the original value and the absolute value of the residual. So we will compute perfect tricluster (i,j,k) then calc residual
 # the range will then be original(i,j,k) - perfect(i,j,k) 
 
+total_genes = (element_count/12)
+total_exp = 3
+total_time = 4
+total_coverage = total_genes * total_exp * total_time 
+
+observed_exp = []
+observed_time = []
+observed_gene = []  
+
 class Block: 
-    def __init__(self, block):
-        self.self = self.self
+    def __init__(self, block, block_num):
         self.block = block
+        self.block_num = block_num
+        self.size = len(block)
+        self.coverage = None
+        self.TQI = None
+        self.gene_count = None
+        self.exp_count = None
+        self.time_count = None
+              
+        
+    def calcRange(self): 
+        # displays highest + lowest values in block
+        highest = 0
+        lowest = 100000000
+        for element in self.block:
+            value = element.real_value
+            if value < lowest:
+                lowest = value
+            if value > highest:
+                highest = value
+        print(f"Highest value is: {highest} and lowest value is {lowest} across {self.size} number of elements at block {self.block_num + 1}")
+        
+    def calcCoverage(self):
+        # calculates the coverage of a single tricluster
+        # here, we consider num of genes to be count of single gene index, eg (1,0,0) and (1,0,1) would result in 1, not 2
+        # same procedure goes for exp and time 
+        
+        # here is the problem, coverage is not meant to be implemented like this, I am aware. However, it is presupposed that some genes would be excluded. What we COULD do is,
+        # get rid of the last block, of unfitting elements. We could play around with a formula to determine exclusion range. This would allow coverage to not always = 1 when applied
+        # if we pretend that we have 5000 test genes, and 4500 of them get clustered (500 dont fit in anywhere, with all exp/time observed), then that yields coverage: 90, which is 
+        # more in line with the results I was seeing from their observations. This is simply a place holder for logic atm
+        
+        # different idea, I will fill in coverage for single tricluster, but do it on a running total, which will then be compared against max
+        
+        my_observed_exp = []
+        my_observed_time = []
+        my_observed_gene = []
+        
+        for element in self.block:
+             # at the end of this we should have array of unique indexes
+
+            if element.gene not in observed_gene:
+                observed_gene.append(element.gene)
+            
+            if element.exp not in observed_exp:
+                observed_exp.append(element.exp)
+            
+            if element.time not in observed_time:
+                observed_time.append(element.time)
+                
+                # again, extremely ugly, but effective
+            
+            if element.gene not in my_observed_gene:
+                my_observed_gene.append(element.gene)
+            
+            if element.exp not in my_observed_exp:
+                my_observed_exp.append(element.exp)
+            
+            if element.time not in my_observed_time:
+                my_observed_time.append(element.time)
+                
+                
+        self.gene_count = len(my_observed_gene)
+
+        self.exp_count = len(my_observed_exp)
+
+        self.time_count = len(my_observed_time)
+
+        
+        # numerator = self.gene_count * self.exp_count * self.time_count
+        
+        # self.coverage = ((numerator/total_coverage) * 100)
+
+    
+    def calcTQI(self):
+        # calculates the triclustering quality index of a single tricluster
+        # r should be computed for each element already, so we calculate the mean squared residue first
+        r_list = []
+        
+        for element in self.block:
+            r_list.append(element.r)
+        
+        mean = (sum(r_list))/(len(r_list))
+        
+        mean_squared = mean ** 2
+        
+        # I take it that volume is referring to standard volume (x*y*z), so I will calculate it as (num_gene * num_exp * num_time)
+        
+        volume = self.gene_count * self.exp_count * self.time_count
+        
+        self.TQI = (mean_squared/volume)
+        
+    # def calcSDB(self):
+        # calculates statistical difference from background (of entire tricluster set) 
+        # this is a place holder for discussion tmr
         
         
+            
 # we already have an array instatiated : tricluster_object_elements that has objects that have real value, r value, and indexing associated with it. The first element should be (0,0,0), so we'll start
 # there, in this way, we can see blocks as just collections of these objects, because all their information is already self contained
 
 if algorithm_2:
     
-    blocks_done = False # all blocks assigned
-    
-    left_over = [] # elements not fitting into block
-    
+    blocks_done = False  # all blocks assigned if true
     all_blocks = []
-    
-    constant = 0 # this can be changed but 0 for now
-    
-    block_elements = tricluster_object_elements # original full (i,j,k) list
-    
-    # IDEA IS TO REASSIGN BLOCK ELEMENTS TO ONES NOT FITTING, WHILE ASSIGNING BLOCK OBJECT TO ONES THAT DO FIT
-    
+    left_over = [] 
+    constant = 0  # this can be changed but 0 for now
+    block_amount = 0
+    stop_at = 100  # same as above
+    block_elements = tricluster_object_elements  # original full (i,j,k) list
+
     while not blocks_done:
-        
-        block = [] # a singular block 
-        
+        block = []  # a singular block
+        left_over = []  # elements not fitting into block
+
+        block_start = block_elements[0]  # start up with first element
+        lower_bound = block_start.real_value
+        upper_bound = lower_bound + abs(block_start.r) + constant
+
         for tri in block_elements:
-            
-            block_start = block_elements[0] # start up with first element
-            lower_bound = block_start.real_value
-            upper_bound = (block_start.real_value + (abs(block_start.r))) + constant             
-            
-            if lower_bound <= target <= upper_bound:
-                block.append(tri)
+            if tri.real_value >= lower_bound and tri.real_value <= upper_bound: 
+                block.append(tri) # in range
             else:
-                left_over.append(tri)
-        
-        block_instance = Block(block)
-        
-        all_blocks.append(block_instance)
-        
-        if len(left_over) <= 100: 
-            for instance in left_over:
-                block.append(instance)
-                block_instance = Block(block)
-                all_blocks.append(block_instance)
-                blocks_done = True
+                left_over.append(tri) # not in range
                 
-        else:
-            block_elements = left_over
+        all_blocks.append(Block(block, block_amount)) # in range get assigned into block
+
+        block_amount += 1
+
+        block_elements = left_over
+        
+        block = []
+
+        if len(block_elements) <= stop_at: # handle terminating conditions, in this case we DO NOT append the last block
+            for instance in block_elements:
+                block.append(instance)
+            # all_blocks.append(Block(block, block_amount))
+            blocks_done = True
+
+        elif not block_elements:
+            blocks_done = True
+
+        
+    
+    # analysis portion 
+    length = 0
+    total_coverage = 0
+    tqi_sum = 0
+    tqi_count = 0
+    avg_tqi = 0
+    
+    for block in all_blocks:
+        # important to calc coverage before TQI
+        length += block.size
+        block.calcRange()
+        block.calcCoverage()
+        block.calcTQI()
+        tqi_count += 1 
+        tqi_sum += block.TQI
+    
+    avg_tqi = tqi_sum/tqi_count
+    
+    denom = (total_genes * total_exp * total_time)
+    numer = (len(observed_gene) * len(observed_exp) * len(observed_time))
+    
+    total_coverage = (numer/denom) * 100
+    
+    print(f"All blocks have coverage : {total_coverage} with average TQI of: {avg_tqi}")
+        
+    print(length)
+    
         
