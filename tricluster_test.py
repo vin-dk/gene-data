@@ -1,4 +1,7 @@
 import pandas as pd
+import random
+import numpy as np
+
 # gene reference names as per sample dataset
 gene_ref = []
 
@@ -14,8 +17,9 @@ df = pd.read_excel(excel_file)
 # each column of excel sheet is an array, right now it is defined as "first 50 rows of column 0, first 50 rows of column 1..." 
 # this follows the correct formatting for our purposes
 
-algorithm_1 = False
-algorithm_2 = True
+algorithm_1 = False # by r mean
+algorithm_2 = False # random block
+algorithm_3 = True # chaos block 
 
 num_genes = 4000
 
@@ -353,7 +357,7 @@ class Block:
                 lowest = value
             if value > highest:
                 highest = value
-        print(f"Highest value is: {highest} and lowest value is {lowest} across {self.size} number of elements at block {self.block_num + 1}")
+        # print(f"Highest value is: {highest} and lowest value is {lowest} across {self.size} number of elements at block {self.block_num + 1}")
         
     def calcCoverage(self):
         # calculates the coverage of a single tricluster
@@ -445,6 +449,7 @@ if algorithm_2:
     block_elements = tricluster_object_elements  # original full (i,j,k) list
 
     while not blocks_done:
+        
         block = []  # a singular block
         left_over = []  # elements not fitting into block
 
@@ -504,4 +509,172 @@ if algorithm_2:
         
     print(length)
     
+    
+    
+if algorithm_3: 
+    # follows much of a similar strategy as the above method, where we init blocks and cluster them accordingly. Here are a couple issues : Should paramaters (constant, terminating block size, etc)
+    # be randomized as well? Additionally, we have no definitive terminating condition. I think initially, what I will do is do the algorithm as proposed, and go off average TQI (SDB still needs
+    # implementing), as coverage will not be incredibly useful with the last block included. 
+    
+    # How i am implementing now is this: cluster everything as above, set its parameter - some amount as initial terminating condition. Then we randomly select a value, randomly manipulate it (0-1) and 
+    # store the resultant blocks (with one different value) as a its own set. Then we compare tqi of both results. If original is better, we keep, if new is better, we discard. Do the process again. The 
+    # process is over when some limit (satisfiablity is reached).
+    
+    # I am going to store all blocks, and compare access them via index, a collection of blocks is only added to the array if the tqi is better than before
+    
+    # important note, generations (the list), does not contain an actual copy of generations. That can be implemented easily, but for now, since I am using ONLY assignments / references to objects,
+    # generations essentially contains the exact same list in each index. It is a placeholder for this implementation 
+    
+    def logSigmoid(x): # for brevity
+        return 1 / (1 + np.exp(-np.log(x)))     
+    
+    def computeWeirdC(t, t_max, k): # this computes the log sig function. 
+        random_num = random.uniform(0,1)
+        log_sig = logSigmoid((0.5 * t_max - t)/(k))
+        result = random_num * log_sig
+        return result
+    
+    def computeNewX(x_old, weird_c): # this computes new element as paper describes
+        random_num = random.uniform(0,1)
+        x_new = (weird_c * random_num) + x_old
+        return x_new
         
+    
+    done = False # determines termination of loop
+    loop_count = 1 # how many time loop has ran
+    best_tqi = 0 # current running best tqi
+    original_tqi = 0 # this is good to have to compare against the best one we produced
+    p2 = True  # future potential? I need to understand the algorithm more
+    target = 1000000 # this is to compare tqi against, our goal is to get it lower
+    generations = [] # this array holds all_blocks, which is an array that, at every index, contains an array representing a block. It is intended to hold every block structuring produced by algo
+    max_gen = 500 # for now, this is the only stop condition. Arbitrarily selecting a threshold is meaningless. However, hopefully we can produce a lower tqi than the original
+    k = 0.5 # I have no idea if this is a reasonable value for k
+    
+    
+    last_element_value = 0  # this var is VERY important, as it is fundamental to how the loop works. it allows us to go back to the prior state if our idea was bad
+    last_element = None # and save which object it was
+    
+    
+    blocks_done = False  # all blocks assigned if true
+    block_elements = tricluster_object_elements  # original full (i,j,k) list    
+    
+    
+    while not done:
+        
+        all_blocks = []
+        left_over = [] 
+        constant = 0  # this can be changed but 0 for now
+        block_amount = 0
+        stop_at = 100  # same as above        
+        
+        while not blocks_done:
+            
+            total_genes = (element_count/12)
+            total_exp = 3
+            total_time = 4
+            total_coverage = total_genes * total_exp * total_time 
+            
+            observed_exp = []
+            observed_time = []
+            observed_gene = []              
+            
+            
+            if loop_count > 1 and p2 == True: # we need to gen a new idea
+                random_block = random.choice(all_blocks)
+                random_element = random.choice(random_block.block)
+                last_element = random_element
+                # now we need to generate a new element to test the idea against 
+                element_value = random_element.real_value
+                last_element_value = element_value
+                weird_c = computeWeirdC(loop_count, max_gen, k)
+                new_x = computeNewX(element_value,weird_c)
+                
+                print(f"New x computed as : {new_x} compared against {last_element_value}")
+                
+                # now we have generated a new value for this randomly selected element. So we assign the element this value
+                random_element.real_value = new_x
+                # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative
+                
+
+                
+            block = []  # a singular block
+            left_over = []  # elements not fitting into block
+
+            block_start = block_elements[0]  # start up with first element
+            lower_bound = block_start.real_value
+            upper_bound = lower_bound + abs(block_start.r) + constant
+
+            for tri in block_elements:
+                if tri.real_value >= lower_bound and tri.real_value <= upper_bound: 
+                    block.append(tri) # in range
+                else:
+                    left_over.append(tri) # not in range
+
+            all_blocks.append(Block(block, block_amount)) # in range get assigned into block
+
+            block_amount += 1
+
+            block_elements = left_over
+
+            block = []
+
+            if len(block_elements) <= stop_at: # handle terminating conditions, in this case we DO NOT append the last block
+                for instance in block_elements:
+                    block.append(instance)
+                all_blocks.append(Block(block, block_amount))
+                blocks_done = True
+
+            elif not block_elements:
+                blocks_done = True
+
+
+            # analysis portion 
+            length = 0
+            total_coverage = 0
+            tqi_sum = 0
+            tqi_count = 0
+            avg_tqi = 0
+
+            for block in all_blocks:
+            # important to calc coverage before TQI
+                length += block.size
+                block.calcRange()
+                block.calcCoverage()
+                block.calcTQI()
+                tqi_count += 1 
+                tqi_sum += block.TQI    
+            
+            avg_tqi = tqi_sum/tqi_count
+                
+            denom = (total_coverage)
+            numer = (len(observed_gene) * len(observed_exp) * len(observed_time))
+                
+            total_coverage = (numer/denom) * 100
+                
+            print(f"All blocks have coverage : {total_coverage} with average TQI of: {avg_tqi}")
+                    
+            if avg_tqi < target and loop_count > 1: # we add to our list if the idea is better
+                generations.append(all_blocks)
+                target = avg_tqi
+                best_tqi = avg_tqi 
+                print(f"New tqi accepted, {new_x} is better than {last_element_value}")
+                
+            elif avg_tqi >= target and loop_count > 1:
+                last_element.real_value = last_element_value # reset the proper value
+                print("New tqi rejected, {new_x} is worse. So the value is reset to it's original value of {last_element_value}")
+                
+            else:
+                original_tqi = avg_tqi
+                
+                
+            
+            loop_count += 1
+            
+            
+            if loop_count <= max_gen:
+                blocks_done = False
+            elif loop_count == max_gen + 1: 
+                done = True
+            
+            # now we have grouping as before, but we need to compare by choosing a random value
+                        
