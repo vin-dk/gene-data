@@ -572,11 +572,10 @@ if algorithm_3:
             total_genes = (element_count/12)
             total_exp = 3
             total_time = 4
-            total_coverage = total_genes * total_exp * total_time 
             
-            observed_exp = []
-            observed_time = []
-            observed_gene = []              
+            observed_exp_loop = []
+            observed_time_loop = []
+            observed_gene_loop = []              
             
             
             if loop_count > 1 and p2 == True: # we need to gen a new idea
@@ -605,6 +604,14 @@ if algorithm_3:
             upper_bound = lower_bound + abs(block_start.r) + constant
 
             for tri in block_elements:
+                
+                if tri.gene not in observed_gene_loop:
+                    observed_gene_loop.append(tri.gene)
+                if tri.exp not in observed_exp_loop:
+                    observed_exp_loop.append(tri.exp) # for calculating coverage
+                if tri.time not in observed_time_loop:
+                    observed_time_loop.append(tri.time)
+                    
                 if tri.real_value >= lower_bound and tri.real_value <= upper_bound: 
                     block.append(tri) # in range
                 else:
@@ -646,12 +653,15 @@ if algorithm_3:
             
             avg_tqi = tqi_sum/tqi_count
                 
-            denom = (total_coverage)
-            numer = (len(observed_gene) * len(observed_exp) * len(observed_time))
+            denom = total_genes * total_exp * total_time
+            numer = (len(observed_gene_loop) * len(observed_exp_loop) * len(observed_time_loop))
                 
             total_coverage = (numer/denom) * 100
                 
             print(f"All blocks have coverage : {total_coverage} with average TQI of: {avg_tqi}")
+            
+            if loop_count == 1:
+                target = avg_tqi
                     
             if avg_tqi < target and loop_count > 1: # we add to our list if the idea is better
                 generations.append(all_blocks)
@@ -661,7 +671,9 @@ if algorithm_3:
                 
             elif avg_tqi >= target and loop_count > 1:
                 last_element.real_value = last_element_value # reset the proper value
-                print("New tqi rejected, {new_x} is worse. So the value is reset to it's original value of {last_element_value}")
+                print(f"New tqi rejected, {new_x} is worse. So the value is reset to it's original value of {last_element_value}")
+                print(f"The target value was {last_element.perfect_value}")
+                # here is the issue, if the "perfect value" is EVER lower, then the algorithm will never improve. Because it is strictly additive (on a always non-negative)
                 
             else:
                 original_tqi = avg_tqi
