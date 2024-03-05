@@ -512,6 +512,8 @@ if algorithm_2:
     
     
 if algorithm_3: 
+    # potential issue, coverage seems to be going down, and Im not sure why
+    
     # follows much of a similar strategy as the above method, where we init blocks and cluster them accordingly. Here are a couple issues : Should paramaters (constant, terminating block size, etc)
     # be randomized as well? Additionally, we have no definitive terminating condition. I think initially, what I will do is do the algorithm as proposed, and go off average TQI (SDB still needs
     # implementing), as coverage will not be incredibly useful with the last block included. 
@@ -536,7 +538,13 @@ if algorithm_3:
     
     def computeNewX(x_old, weird_c): # this computes new element as paper describes
         random_num = random.uniform(0,1)
-        x_new = (weird_c * random_num) + x_old
+        plus_minus = ["+","-"]
+        choice = random.choice(plus_minus)
+        if choice == "+":
+            x_new = (weird_c * random_num) + x_old
+        elif choice == "-":
+            x_new = x_old - (weird_c * random_num)
+            
         return x_new
         
     
@@ -544,7 +552,14 @@ if algorithm_3:
     loop_count = 1 # how many time loop has ran
     best_tqi = 0 # current running best tqi
     original_tqi = 0 # this is good to have to compare against the best one we produced
-    p2 = True  # future potential? I need to understand the algorithm more
+    
+    pOT = -1
+    p2 = random.uniform(0,1)  # randomly generated values to decide algo
+    p3 = random.uniform(0,1)
+    pOC = random.uniform(0,1)
+    
+    
+    
     target = 1000000 # this is to compare tqi against, our goal is to get it lower
     generations = [] # this array holds all_blocks, which is an array that, at every index, contains an array representing a block. It is intended to hold every block structuring produced by algo
     max_gen = 500 # for now, this is the only stop condition. Arbitrarily selecting a threshold is meaningless. However, hopefully we can produce a lower tqi than the original
@@ -553,6 +568,9 @@ if algorithm_3:
     
     last_element_value = 0  # this var is VERY important, as it is fundamental to how the loop works. it allows us to go back to the prior state if our idea was bad
     last_element = None # and save which object it was
+    
+    last_element_1_value = 0
+    last_element_1 = None
     
     
     blocks_done = False  # all blocks assigned if true
@@ -575,10 +593,22 @@ if algorithm_3:
             
             observed_exp_loop = []
             observed_time_loop = []
-            observed_gene_loop = []              
+            observed_gene_loop = []  
+            
+            p3 = random.uniform(0,1)
+            pOC = random.uniform(0,1)
+            
+            if p3 == pOC: #condition for extremely rare case of same selected number
+                options = ["p3","pOC"]
+                choice = random.choice (options)
+                if choice == "p3":
+                    p3 += 0.01
+                else:
+                    pOC += 0.01
             
             
-            if loop_count > 1 and p2 == True: # we need to gen a new idea
+            if loop_count > 1 and p3 < pOC: # we need to gen a new idea
+                print("One idea branch won")
                 random_block = random.choice(all_blocks)
                 random_element = random.choice(random_block.block)
                 last_element = random_element
@@ -588,11 +618,40 @@ if algorithm_3:
                 weird_c = computeWeirdC(loop_count, max_gen, k)
                 new_x = computeNewX(element_value,weird_c)
                 
-                print(f"New x computed as : {new_x} compared against {last_element_value}")
                 
                 # now we have generated a new value for this randomly selected element. So we assign the element this value
                 random_element.real_value = new_x
                 # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative
+            
+            elif loop_count > 1 and p3 > pOC:
+                print("Two idea branch won")
+                random_block = random.choice(all_blocks)
+                random_element = random.choice(random_block.block)
+                last_element = random_element
+                # now we need to generate a new element to test the idea against 
+                element_value = random_element.real_value
+                last_element_value = element_value
+                weird_c = computeWeirdC(loop_count, max_gen, k)
+                new_x = computeNewX(element_value,weird_c)
+                
+                # now we have generated a new value for this randomly selected element. So we assign the element this value
+                random_element.real_value= new_x
+                # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative
+                
+                random_block_1 = random.choice(all_blocks)
+                random_element_1 = random.choice(random_block_1.block)
+                last_element_1 = random_element_1
+                # now we need to generate a new element to test the idea against 
+                element_value_1 = random_element_1.real_value
+                last_element_value_1 = element_value_1
+                weird_c_1 = computeWeirdC(loop_count, max_gen, k)
+                new_x_1 = computeNewX(element_value_1,weird_c)
+                
+                
+                # now we have generated a new value for this randomly selected element. So we assign the element this value
+                random_element_1.real_value = new_x_1
+                # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative                
+                
                 
 
                 
@@ -658,24 +717,38 @@ if algorithm_3:
                 
             total_coverage = (numer/denom) * 100
                 
-            print(f"All blocks have coverage : {total_coverage} with average TQI of: {avg_tqi}")
+            #print(f"All blocks have coverage : {total_coverage} with average TQI of: {avg_tqi}")
+            print(f"All blocks average TQI of: {avg_tqi}")
             
             if loop_count == 1:
                 target = avg_tqi
                     
-            if avg_tqi < target and loop_count > 1: # we add to our list if the idea is better
+            if avg_tqi < target and loop_count > 1 and p3 < pOC: # we add to our list if the idea is better
                 generations.append(all_blocks)
                 target = avg_tqi
                 best_tqi = avg_tqi 
                 print(f"New tqi accepted, {new_x} is better than {last_element_value}")
                 
-            elif avg_tqi >= target and loop_count > 1:
+            elif avg_tqi >= target and loop_count > 1 and p3 < pOC:
                 last_element.real_value = last_element_value # reset the proper value
                 print(f"New tqi rejected, {new_x} is worse. So the value is reset to it's original value of {last_element_value}")
                 print(f"The target value was {last_element.perfect_value}")
-                # here is the issue, if the "perfect value" is EVER lower, then the algorithm will never improve. Because it is strictly additive (on a always non-negative)
                 
-            else:
+            
+            if avg_tqi < target and loop_count > 1 and p3 > pOC: # we add to our list if the idea is better
+                generations.append(all_blocks)
+                target = avg_tqi
+                best_tqi = avg_tqi 
+                print(f"New tqi accepted, {new_x} and {new_x_1} is better than {last_element_value} and {last_element_value}")
+                
+            elif avg_tqi >= target and loop_count > 1 and p3 > pOC:
+                last_element.real_value = last_element_value # reset the proper value
+                last_element_1.real_value = last_element_value_1
+                print(f"New tqi rejected, {new_x} and {new_x_1} is worse. So the value is reset to it's original value of {last_element_value} and {last_element_value_1}")
+                print(f"The target value was {last_element.perfect_value} and {last_element_1.perfect_value}")
+                
+                
+            if loop_count == 1:
                 original_tqi = avg_tqi
                 
                 
@@ -687,6 +760,15 @@ if algorithm_3:
                 blocks_done = False
             elif loop_count == max_gen + 1: 
                 done = True
+        
             
-            # now we have grouping as before, but we need to compare by choosing a random value
+            loop_count += 1
+            
+            
+            if loop_count <= max_gen:
+                blocks_done = False
+            if loop_count == max_gen + 1: 
+                done = True        
+            
+        # now we have grouping as before, but we need to compare by choosing a random value
                         
