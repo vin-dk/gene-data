@@ -193,7 +193,7 @@ class PerfectTricluster:
         
         self.real_value = target_array[self.gene]
         
-        self.r = self.real_value - self.perfect_value
+        self.r = abs(self.real_value - self.perfect_value)
     
     @staticmethod
     def createGene(tri_value_array):
@@ -344,8 +344,7 @@ class Block:
         self.TQI = None
         self.gene_count = None
         self.exp_count = None
-        self.time_count = None
-              
+        self.time_count = None       
         
     def calcRange(self): 
         # displays highest + lowest values in block
@@ -488,6 +487,7 @@ if algorithm_2:
     tqi_sum = 0
     tqi_count = 0
     avg_tqi = 0
+    block_amount = 0
     
     for block in all_blocks:
         # important to calc coverage before TQI
@@ -497,6 +497,7 @@ if algorithm_2:
         block.calcTQI()
         tqi_count += 1 
         tqi_sum += block.TQI
+        block_amount += 1
     
     avg_tqi = tqi_sum/tqi_count
     
@@ -505,7 +506,7 @@ if algorithm_2:
     
     total_coverage = (numer/denom) * 100
     
-    print(f"All blocks have coverage : {total_coverage} with average TQI of: {avg_tqi}")
+    print(f"All blocks have coverage : {total_coverage} with average TQI of: {avg_tqi} from {block_amount} blocks and {length} elements")
         
     print(length)
     
@@ -553,11 +554,12 @@ if algorithm_3:
     best_tqi = 0 # current running best tqi
     original_tqi = 0 # this is good to have to compare against the best one we produced
     
-    pOT = -1
-    p2 = random.uniform(0,1)  # randomly generated values to decide algo
-    p3 = random.uniform(0,1)
-    pOC = random.uniform(0,1)
-    
+    pOT = 0
+    p2 = 0  # randomly generated values to decide algo
+    p3 = 0
+    pOC = 0
+    p4 = 0
+    pTC = 0
     
     
     target = 1000000 # this is to compare tqi against, our goal is to get it lower
@@ -565,16 +567,26 @@ if algorithm_3:
     max_gen = 500 # for now, this is the only stop condition. Arbitrarily selecting a threshold is meaningless. However, hopefully we can produce a lower tqi than the original
     k = 0.5 # I have no idea if this is a reasonable value for k
     
+    new_x = 0
+    new_x_1 = 0
+    
     
     last_element_value = 0  # this var is VERY important, as it is fundamental to how the loop works. it allows us to go back to the prior state if our idea was bad
     last_element = None # and save which object it was
     
-    last_element_1_value = 0
+    last_element_value_1 = 0
     last_element_1 = None
     
     
-    blocks_done = False  # all blocks assigned if true
-    block_elements = tricluster_object_elements  # original full (i,j,k) list    
+    blocks_done = False  # all blocks assigned if true   
+    
+    pOT_weight = 0
+    p2_weight = 0
+    p3_weight = 0 # governs weighting of option selection
+    pTC_weight = 0
+    
+    prob_increase = 0.01 # amount for which winning increases probability. Keep in mind it is comparison of random nums between (0,1). 
+    # so if it ever outpaces its sister comparison by >1, the chances become 100%. Counter-intuitively, we want winner to lose comparison (<) so we increase its sister value 
     
     
     while not done:
@@ -583,77 +595,21 @@ if algorithm_3:
         left_over = [] 
         constant = 0  # this can be changed but 0 for now
         block_amount = 0
-        stop_at = 100  # same as above        
+        stop_at = 100  # same as above  
+        observed_exp_loop = []
+        observed_time_loop = []
+        observed_gene_loop = [] 
+        
+        block_elements = tricluster_object_elements  # original full (i,j,k) list
+        
+        if loop_count < max_gen:
+            blocks_done = False
         
         while not blocks_done:
             
             total_genes = (element_count/12)
             total_exp = 3
             total_time = 4
-            
-            observed_exp_loop = []
-            observed_time_loop = []
-            observed_gene_loop = []  
-            
-            p3 = random.uniform(0,1)
-            pOC = random.uniform(0,1)
-            
-            if p3 == pOC: #condition for extremely rare case of same selected number
-                options = ["p3","pOC"]
-                choice = random.choice (options)
-                if choice == "p3":
-                    p3 += 0.01
-                else:
-                    pOC += 0.01
-            
-            
-            if loop_count > 1 and p3 < pOC: # we need to gen a new idea
-                print("One idea branch won")
-                random_block = random.choice(all_blocks)
-                random_element = random.choice(random_block.block)
-                last_element = random_element
-                # now we need to generate a new element to test the idea against 
-                element_value = random_element.real_value
-                last_element_value = element_value
-                weird_c = computeWeirdC(loop_count, max_gen, k)
-                new_x = computeNewX(element_value,weird_c)
-                
-                
-                # now we have generated a new value for this randomly selected element. So we assign the element this value
-                random_element.real_value = new_x
-                # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative
-            
-            elif loop_count > 1 and p3 > pOC:
-                print("Two idea branch won")
-                random_block = random.choice(all_blocks)
-                random_element = random.choice(random_block.block)
-                last_element = random_element
-                # now we need to generate a new element to test the idea against 
-                element_value = random_element.real_value
-                last_element_value = element_value
-                weird_c = computeWeirdC(loop_count, max_gen, k)
-                new_x = computeNewX(element_value,weird_c)
-                
-                # now we have generated a new value for this randomly selected element. So we assign the element this value
-                random_element.real_value= new_x
-                # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative
-                
-                random_block_1 = random.choice(all_blocks)
-                random_element_1 = random.choice(random_block_1.block)
-                last_element_1 = random_element_1
-                # now we need to generate a new element to test the idea against 
-                element_value_1 = random_element_1.real_value
-                last_element_value_1 = element_value_1
-                weird_c_1 = computeWeirdC(loop_count, max_gen, k)
-                new_x_1 = computeNewX(element_value_1,weird_c)
-                
-                
-                # now we have generated a new value for this randomly selected element. So we assign the element this value
-                random_element_1.real_value = new_x_1
-                # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative                
-                
-                
-
                 
             block = []  # a singular block
             left_over = []  # elements not fitting into block
@@ -691,84 +647,267 @@ if algorithm_3:
                 blocks_done = True
 
             elif not block_elements:
-                blocks_done = True
-
-
-            # analysis portion 
-            length = 0
-            total_coverage = 0
-            tqi_sum = 0
-            tqi_count = 0
-            avg_tqi = 0
-
-            for block in all_blocks:
-            # important to calc coverage before TQI
-                length += block.size
-                block.calcRange()
-                block.calcCoverage()
-                block.calcTQI()
-                tqi_count += 1 
-                tqi_sum += block.TQI    
-            
-            avg_tqi = tqi_sum/tqi_count
+                blocks_done = True 
                 
-            denom = total_genes * total_exp * total_time
-            numer = (len(observed_gene_loop) * len(observed_exp_loop) * len(observed_time_loop))
-                
-            total_coverage = (numer/denom) * 100
-                
-            #print(f"All blocks have coverage : {total_coverage} with average TQI of: {avg_tqi}")
-            print(f"All blocks average TQI of: {avg_tqi}")
-            
-            if loop_count == 1:
-                target = avg_tqi
-                    
-            if avg_tqi < target and loop_count > 1 and p3 < pOC: # we add to our list if the idea is better
-                generations.append(all_blocks)
-                target = avg_tqi
-                best_tqi = avg_tqi 
-                print(f"New tqi accepted, {new_x} is better than {last_element_value}")
-                
-            elif avg_tqi >= target and loop_count > 1 and p3 < pOC:
-                last_element.real_value = last_element_value # reset the proper value
-                print(f"New tqi rejected, {new_x} is worse. So the value is reset to it's original value of {last_element_value}")
-                print(f"The target value was {last_element.perfect_value}")
-                
-            
-            if avg_tqi < target and loop_count > 1 and p3 > pOC: # we add to our list if the idea is better
-                generations.append(all_blocks)
-                target = avg_tqi
-                best_tqi = avg_tqi 
-                print(f"New tqi accepted, {new_x} and {new_x_1} is better than {last_element_value} and {last_element_value}")
-                
-            elif avg_tqi >= target and loop_count > 1 and p3 > pOC:
-                last_element.real_value = last_element_value # reset the proper value
-                last_element_1.real_value = last_element_value_1
-                print(f"New tqi rejected, {new_x} and {new_x_1} is worse. So the value is reset to it's original value of {last_element_value} and {last_element_value_1}")
-                print(f"The target value was {last_element.perfect_value} and {last_element_1.perfect_value}")
-                
-                
-            if loop_count == 1:
-                original_tqi = avg_tqi
-                
-                
-            
-            loop_count += 1
-            
-            
-            if loop_count <= max_gen:
-                blocks_done = False
-            elif loop_count == max_gen + 1: 
-                done = True
         
+        # analysis portion 
+        length = 0
+        total_coverage = 0
+        tqi_sum = 0
+        tqi_count = 0
+        avg_tqi = 0
+        block_count = 0
+
+        for block in all_blocks:
+        # important to calc coverage before TQI
+            length += block.size
+            block.calcRange()
+            block.calcCoverage()
+            block.calcTQI()
+            tqi_count += 1 
+            tqi_sum += block.TQI
+            block_count += 1
+        
+        
+        avg_tqi = tqi_sum/tqi_count
+                
+        denom = total_genes * total_exp * total_time
+        numer = (len(observed_gene_loop) * len(observed_exp_loop) * len(observed_time_loop))
+                
+        total_coverage = (numer/denom) * 100
+        
+        print(f"All blocks average TQI of: {avg_tqi} with coverage: {total_coverage} from {block_count} blocks and {length} elements")
+        
+        if loop_count == 1:
+            target = avg_tqi        
+     
+        
+        if loop_count > 1:
+                if avg_tqi < target and p3 < pOC and p2 < pOT: # we add to our list if the idea is better
+                    generations.append(all_blocks)
+                    target = avg_tqi
+                    best_tqi = avg_tqi 
+                    print(f"New tqi accepted, {new_x} is better than {last_element_value}")
+                    print(f"The target value was {last_element.perfect_value}")
+                    print("")
+        
+                elif avg_tqi >= target and p3 < pOC and p2 < pOT:
+                    last_element.real_value = last_element_value # reset the proper value
+                    last_element.r = abs(last_element.real_value - last_element.perfect_value)
+                    print(f"New tqi rejected, {new_x} is worse. So the value is reset to it's original value of {last_element_value}")
+                    print(f"The target value was {last_element.perfect_value}")
+                    print("")
+                
+                
+                
+                
             
-            loop_count += 1
+                if avg_tqi < target and pOC < p3 and p2 < pOT: # we add to our list if the idea is better
+                    generations.append(all_blocks)
+                    target = avg_tqi
+                    best_tqi = avg_tqi 
+                    print(f"New tqi accepted, {new_x} is better than {last_element_value}")
+                    print(f"The target value was {last_element.perfect_value}")
+                    print("")
+            
+                elif avg_tqi >= target and pOC < p3 and p2 < pOT:
+                    last_element.real_value = last_element_value # reset the proper value
+                    last_element.r = abs(last_element.real_value - last_element.perfect_value)
+                    print(f"New tqi rejected, {new_x} is worse. So the value is reset to it's original value of {last_element_value}")
+                    print(f"The target value was {last_element.perfect_value}")
+                    print("")
+                
+                
+                
+        
+        
+                if avg_tqi < target and p4 < pTC and pOT < p2: # we add to our list if the idea is better
+                    generations.append(all_blocks)
+                    target = avg_tqi
+                    best_tqi = avg_tqi 
+                    print(f"New tqi accepted, {new_x} and {new_x_1} is better than {last_element_value} and {last_element_value_1}")
+                    print(f"The target value was {last_element.perfect_value} and {last_element_1.perfect_value}")
+                    print("")
+        
+                elif avg_tqi >= target and p4 < pTC and pOT < p2:
+                    last_element.real_value = last_element_value # reset the proper value
+                    last_element_1.real_value = last_element_value_1
+                    last_element.r = abs(last_element.real_value - last_element.perfect_value)
+                    last_element_1.r = abs(last_element_1.real_value - last_element_1.perfect_value)                    
+                    print(f"New tqi rejected, {new_x} and {new_x_1} is worse. So the value is reset to it's original value of {last_element_value} and {last_element_value_1}")
+                    print(f"The target value was {last_element.perfect_value} and {last_element_1.perfect_value}")
+                    print("")
+                
+                
             
             
-            if loop_count <= max_gen:
-                blocks_done = False
-            if loop_count == max_gen + 1: 
-                done = True        
+                if avg_tqi < target and pTC < p4 and pOT < p2: # we add to our list if the idea is better
+                    generations.append(all_blocks)
+                    target = avg_tqi
+                    best_tqi = avg_tqi 
+                    print(f"New tqi accepted, {new_x} and {new_x_1} is better than {last_element_value} and {last_element_value_1}")
+                    print(f"The target value was {last_element.perfect_value} and {last_element_1.perfect_value}")
+                    print("")
+        
+                elif avg_tqi >= target and pTC < p4 and pOT < p2:
+                    last_element.real_value = last_element_value # reset the proper value
+                    last_element_1.real_value = last_element_value_1
+                    last_element.r = abs(last_element.real_value - last_element.perfect_value)
+                    last_element_1.r = abs(last_element_1.real_value - last_element_1.perfect_value)
+                    print(f"New tqi rejected, {new_x} and {new_x_1} is worse. So the value is reset to it's original value of {last_element_value} and {last_element_value_1}")
+                    print(f"The target value was {last_element.perfect_value} and {last_element_1.perfect_value}")
+                    print("")
+        
+        loop_count += 1
+        
+        pOT = random.uniform(0,1)
+        p2 = random.uniform(0,1)
+        p3 = random.uniform(0,1)
+        pOC = random.uniform(0,1)
+        p4 = random.uniform(0,1)
+        pTC = random.uniform(0,1)
             
-        # now we have grouping as before, but we need to compare by choosing a random value
+        if p2 == pOT: #condition for extremely rare case of same selected number
+            options = ["p2","pOT"]
+            choice = random.choice (options)
+            if choice == "p2":
+                p2 += 0.01
+            else:
+                pOT += 0.01
+                    
+        if p3 == pOC: #condition for extremely rare case of same selected number
+            options = ["p3","pOC"]
+            choice = random.choice (options)
+            if choice == "p3":
+                p3 += 0.01
+            else:
+                pOC += 0.01
+                    
+        if p4 == pTC: #condition for extremely rare case of same selected number
+            options = ["p4","pTC"]
+            choice = random.choice (options)
+            if choice == "p4":
+                p4 += 0.01
+            else:
+                pTC += 0.01        
+            
+            
+        if p3 < pOC and p2 < pOT:
+            
+            # we need to gen a new idea
+            print("p3 and p2 won")
+            random_block = random.choice(all_blocks)
+            random_element = random.choice(random_block.block)
+            last_element = random_element
+            #now we need to generate a new element to test the idea against 
+            element_value = random_element.real_value
+            last_element_value = element_value
+            weird_c = computeWeirdC(loop_count, max_gen, k)
+            new_x = computeNewX(element_value,weird_c)
+                
+                
+            # now we have generated a new value for this randomly selected element. So we assign the element this value
+            random_element.real_value = new_x
+            random_element.r = abs(random_element.real_value - random_element.perfect_value)
+            # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative
+            new_x_1 = 0
+            
+        elif p4 < pTC and pOT < p2:
+            
+            print("p4 and pOT won")
+            random_block = random.choice(all_blocks)
+            random_element = random.choice(random_block.block)
+            last_element = random_element
+            # now we need to generate a new element to test the idea against 
+            element_value = random_element.real_value
+            last_element_value = element_value
+            weird_c = computeWeirdC(loop_count, max_gen, k)
+            new_x = computeNewX(element_value,weird_c)
+                
+            # now we have generated a new value for this randomly selected element. So we assign the element this value
+            random_element.real_value= new_x
+            random_element.r = abs(random_element.real_value - random_element.perfect_value)
+            # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative
+                
+            random_block_1 = random.choice(all_blocks)
+            random_element_1 = random.choice(random_block_1.block)
+            last_element_1 = random_element_1
+            # now we need to generate a new element to test the idea against 
+            element_value_1 = random_element_1.real_value
+            last_element_value_1 = element_value_1
+            weird_c_1 = computeWeirdC(loop_count, max_gen, k)
+            new_x_1 = computeNewX(element_value_1,weird_c)
+                
+                
+            # now we have generated a new value for this randomly selected element. So we assign the element this value
+            random_element_1.real_value = new_x_1
+            random_element_1.r = abs(random_element_1.real_value - random_element_1.perfect_value)
+            
+            
+        if pOC < p3 and p2 < pOT:
+            
+            lowest_r = 1000000
+            print("pOC and p2 won")
+            random_block = random.choice(all_blocks)
+            for element in random_block.block:
+                if element.r < lowest_r:
+                    lowest_r = element.r
+                    x_s = element
+            last_element = x_s
+            #now we need to generate a new element to test the idea against 
+            element_value = x_s.real_value
+            last_element_value = element_value
+            weird_c = computeWeirdC(loop_count, max_gen, k)
+            new_x = computeNewX(element_value,weird_c)
+                    
+                    
+            # now we have generated a new value for this randomly selected element. So we assign the element this value
+            x_s.real_value = new_x
+            x_s.r = abs(x_s.real_value - x_s.perfect_value)
+            # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative                
+            new_x_1 = 0
+            
+        elif pTC < p4 and pOT < p2:
+            
+            lowest_r = 1000000
+            print("pTC and pOT won")
+            random_block = random.choice(all_blocks)
+            for element in random_block.block:
+                if element.r < lowest_r:
+                    lowest_r = element.r
+                    x_s = element            
+            last_element = x_s
+            # now we need to generate a new element to test the idea against 
+            element_value = x_s.real_value
+            last_element_value = element_value
+            weird_c = computeWeirdC(loop_count, max_gen, k)
+            new_x = computeNewX(element_value,weird_c)
+                    
+            # now we have generated a new value for this randomly selected element. So we assign the element this value
+            x_s.real_value = new_x
+            x_s.r = abs(x_s.real_value - x_s.perfect_value)
+            # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative
+            
+            lowest_r_1 = 1000000        
+            random_block_1 = random.choice(all_blocks)
+            for element in random_block_1.block:
+                if element.r < lowest_r_1:
+                    lowest_r_1 = element.r
+                    x_s_1 = element
+            last_element_1 = x_s_1
+            # now we need to generate a new element to test the idea against 
+            element_value_1 = x_s_1.real_value
+            last_element_value_1 = element_value_1
+            weird_c_1 = computeWeirdC(loop_count, max_gen, k)
+            new_x_1 = computeNewX(element_value_1,weird_c)
+                    
+                    
+            # now we have generated a new value for this randomly selected element. So we assign the element this value
+            x_s_1.real_value = new_x_1 
+            x_s_1.r = abs(x_s_1.real_value - x_s_1.perfect_value)
+            
+        if loop_count == max_gen + 1: 
+            done = True
+            blocks_done = True
+        
                         
