@@ -1,6 +1,7 @@
 import pandas as pd
 import random
 import numpy as np
+import copy
 
 # gene reference names as per sample dataset
 gene_ref = []
@@ -147,6 +148,7 @@ class PerfectTricluster:
         self.tri_mean = mean_objects_tri[0].value
         self.perfect_value = None
         self.real_value = None
+        self.org_real_value = None
         self.array_index = None
         self.r = None
     
@@ -192,6 +194,7 @@ class PerfectTricluster:
         target_array = data_points[self.array_index]
         
         self.real_value = target_array[self.gene]
+        self.org_real_value = self.real_value # storing the original for later
         
         self.r = abs(self.real_value - self.perfect_value)
     
@@ -547,6 +550,10 @@ if algorithm_3:
             x_new = x_old - (weird_c * random_num)
             
         return x_new
+    
+    def computeNewProb(prob_a,prob_b):
+        # couple of notes, we use the formula they outline for the roulette wheel, but not destruction and reinsertion of elements
+        # I only implement the roulette wheel, probability update function
         
     
     done = False # determines termination of loop
@@ -677,14 +684,17 @@ if algorithm_3:
         total_coverage = (numer/denom) * 100
         
         print(f"All blocks average TQI of: {avg_tqi} with coverage: {total_coverage} from {block_count} blocks and {length} elements")
+        print("")
         
         if loop_count == 1:
-            target = avg_tqi        
+            # we store the avg tqi, and a snapshot of the original clustering to compare against
+            target = avg_tqi
+            snapshot = copy.deepcopy(all_blocks) 
      
         
         if loop_count > 1:
                 if avg_tqi < target and p3 < pOC and p2 < pOT: # we add to our list if the idea is better
-                    generations.append(all_blocks)
+                    # generations.append(all_blocks)
                     target = avg_tqi
                     best_tqi = avg_tqi 
                     print(f"New tqi accepted, {new_x} is better than {last_element_value}")
@@ -703,7 +713,7 @@ if algorithm_3:
                 
             
                 if avg_tqi < target and pOC < p3 and p2 < pOT: # we add to our list if the idea is better
-                    generations.append(all_blocks)
+                    # generations.append(all_blocks)
                     target = avg_tqi
                     best_tqi = avg_tqi 
                     print(f"New tqi accepted, {new_x} is better than {last_element_value}")
@@ -722,7 +732,7 @@ if algorithm_3:
         
         
                 if avg_tqi < target and p4 < pTC and pOT < p2: # we add to our list if the idea is better
-                    generations.append(all_blocks)
+                    # generations.append(all_blocks)
                     target = avg_tqi
                     best_tqi = avg_tqi 
                     print(f"New tqi accepted, {new_x} and {new_x_1} is better than {last_element_value} and {last_element_value_1}")
@@ -742,7 +752,7 @@ if algorithm_3:
             
             
                 if avg_tqi < target and pTC < p4 and pOT < p2: # we add to our list if the idea is better
-                    generations.append(all_blocks)
+                    # generations.append(all_blocks)
                     target = avg_tqi
                     best_tqi = avg_tqi 
                     print(f"New tqi accepted, {new_x} and {new_x_1} is better than {last_element_value} and {last_element_value_1}")
@@ -907,7 +917,66 @@ if algorithm_3:
             x_s_1.r = abs(x_s_1.real_value - x_s_1.perfect_value)
             
         if loop_count == max_gen + 1: 
+            # we are done, we need to compare our clustering here against our original try
+            # we will replace our "fake values" with the real values from before, and see if tqi has improved
             done = True
             blocks_done = True
+            
+            for block in all_blocks:
+                for element in block:
+                    element.real_value = element.org_real_value
+                    element.r = abs(element.real_value - element.perfect_value)
+            
+            # so now we should have clustering according to the algorithm above, but our real values are reinserted into the clusters
+            
+            # analysis portion 
+            length = 0
+            total_coverage = 0
+            tqi_sum = 0
+            tqi_count = 0
+            avg_tqi = 0
+            block_count = 0
+
+            for block in all_blocks:
+                # important to calc coverage before TQI
+                length += block.size
+                block.calcRange()
+                block.calcCoverage()
+                block.calcTQI()
+                tqi_count += 1 
+                tqi_sum += block.TQI
+                block_count += 1
+        
+        
+            avg_tqi = tqi_sum/tqi_count
+           
+        
+            print(f"The calculated tqi is: {avg_tqi}")
+        
+            length = 0
+            total_coverage = 0
+            tqi_sum = 0
+            tqi_count = 0
+            avg_tqi = 0
+            block_count = 0            
+            
+            for block in snapshot:
+                # important to calc coverage before TQI
+                length += block.size
+                block.calcRange()
+                block.calcCoverage()
+                block.calcTQI()
+                tqi_count += 1 
+                tqi_sum += block.TQI
+                block_count += 1
+        
+        
+            avg_tqi = tqi_sum/tqi_count             
+            
+            
+            print(f"The original tqi is: {avg_tqi}")
+            
+            
+            # TO DO: FILE EXPORT OF TRIAL RUNS
         
                         
