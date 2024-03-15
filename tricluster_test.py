@@ -551,9 +551,50 @@ if algorithm_3:
             
         return x_new
     
-    def computeNewProb(prob_a,prob_b):
+    def computeNewProb(prob_a,prob_b, array_a, array_b):
         # couple of notes, we use the formula they outline for the roulette wheel, but not destruction and reinsertion of elements
         # I only implement the roulette wheel, probability update function
+        # I am sure I could figure out destruction and reinsertion, but I expect it would drastically change the core implementation
+        # some liberties are taken, particulary for "psi" (w). I only consider acceptance and rejection, because global scores and better don't matter
+        # due to no destruction. And acceptance is only preferred if tqi is objectively better (not equal), hence, there are only two factors psi.
+        # We want to select factors lambda and psi wisely, so that acceptance strictly increases probability. We also need to be rid of simple comparison
+        # such that the 0.xx probability is consistent and actually reflects the chance of being chosen. The way I will accomplish this is by populating
+        # an array of 100 elements with each probability, where 0.65 populates 65 elements into the array. Then choose randomly from it. I will make the 
+        # lambda (decay) factor 0.5, which results in each number being cut in half
+        
+        # the reason I have for this is that I think in the case of our problem, removing elements doesn't actually make any sense, we want to see where everything is 
+        # sorted, but it also means whatever computed amount prob_a is, 1 - prob_a = prob_b
+        # I am actually unsure of how to handle the destruction variables and such so for now psi is 1, and the update is actually lambda(prob_a) + (1-lambda) (1)
+        # I am setting lambda = 0.9 for very small increases
+        
+        # IMPORTANT, WINNING PATH IS ALWAYS PASSED IN AS A AS IT IS THE WINNING PATH
+        
+        # placeholder
+        
+        lamb = 0.9
+        psi = 1
+        
+        choices = []
+        
+        prob_a = lamb(prob_a) + (1 - lamb)(psi)
+        prob_b = (1 - prob_a)
+        
+        prob_a = round(prob_a,2)
+        prob_b = round(prob_a,2)
+        
+        if prob_a >= 1: # guard against locking in one path, and screwing up the choice algo
+            prob_a = 0.99
+            prob_b = 0.01
+        
+        if prob_b >= 1: # guard against locking in one path
+            prob_b = 0.99
+            prob_a = 0.01
+            
+        selection_a = prob_a * 100
+        selection_b = prob_b * 100
+    
+    
+        
         
     
     done = False # determines termination of loop
@@ -571,7 +612,7 @@ if algorithm_3:
     
     target = 1000000 # this is to compare tqi against, our goal is to get it lower
     generations = [] # this array holds all_blocks, which is an array that, at every index, contains an array representing a block. It is intended to hold every block structuring produced by algo
-    max_gen = 500 # for now, this is the only stop condition. Arbitrarily selecting a threshold is meaningless. However, hopefully we can produce a lower tqi than the original
+    max_gen = 100 # for now, this is the only stop condition. Arbitrarily selecting a threshold is meaningless. However, hopefully we can produce a lower tqi than the original
     k = 0.5 # I have no idea if this is a reasonable value for k
     
     new_x = 0
@@ -587,13 +628,18 @@ if algorithm_3:
     
     blocks_done = False  # all blocks assigned if true   
     
-    pOT_weight = 0
-    p2_weight = 0
-    p3_weight = 0 # governs weighting of option selection
-    pTC_weight = 0
+    pOT_vs_p2 = [0 for _ in range(100)] # initialization of choice arrays
+    pOC_vs_p3 = [0 for _ in range(100)]
+    pTC_vs_p4 = [0 for _ in range(100)]
     
-    prob_increase = 0.01 # amount for which winning increases probability. Keep in mind it is comparison of random nums between (0,1). 
-    # so if it ever outpaces its sister comparison by >1, the chances become 100%. Counter-intuitively, we want winner to lose comparison (<) so we increase its sister value 
+    selection_1 = ""
+    selection_2 = ""
+    selection_3 = ""
+    selection_string = ""
+    
+    psi = 1
+    lamb = 0.9
+    lamb_fac = 0.01 # introduced to have a bit of variance, can easily be taken away
     
     
     while not done:
@@ -686,22 +732,94 @@ if algorithm_3:
         print(f"All blocks average TQI of: {avg_tqi} with coverage: {total_coverage} from {block_count} blocks and {length} elements")
         print("")
         
+        
         if loop_count == 1:
             # we store the avg tqi, and a snapshot of the original clustering to compare against
             target = avg_tqi
-            snapshot = copy.deepcopy(all_blocks) 
+            snapshot = copy.deepcopy(all_blocks)
      
-        
-        if loop_count > 1:
-                if avg_tqi < target and p3 < pOC and p2 < pOT: # we add to our list if the idea is better
+        if loop_count > 1: 
+            
+            choice = ["+","-"]
+            plus_minus = random.choice(choice)
+            if choice == "+":
+                lamb += lamb_fac
+            else:
+                lamb -= lamb_fac
+            
+            if lamb == 1: # random case but need to protect against it
+                lamb == 0.90 # just reset it
+                
+            
+            if selection_string[0] == "a":
+                
+                    
+                if avg_tqi < target and selection_string[1] == "c": # we add to our list if the idea is better
                     # generations.append(all_blocks)
                     target = avg_tqi
                     best_tqi = avg_tqi 
                     print(f"New tqi accepted, {new_x} is better than {last_element_value}")
                     print(f"The target value was {last_element.perfect_value}")
                     print("")
+                    
+                    p2 = lamb * (p2) + (1-lamb) * (psi)
+                    p2 = round(p2,2)
+                    
+                    if p2 >= 1 :
+                        p2 = 0.99
+                        
+                    pOT = 1 - p2
+                    pOT = round(pOT,2)
+                    
+                    p3 = lamb * (p3) + (1-lamb) * (psi)
+                    p3 = round(p3,2)
+                    
+                    if p3 >= 1 :
+                        p3 == 0.99
+                        
+                    pOC = 1 - p3 
+                    pOC = round(pOC,2)
+                    
+                    print(f"New statistical chance is p2 : {p2} vs pOT : {pOT} and p3: {p3} vs p3: {pOC}")
         
-                elif avg_tqi >= target and p3 < pOC and p2 < pOT:
+                elif avg_tqi >= target and selection_string[1] == "c":
+                    last_element.real_value = last_element_value # reset the proper value
+                    last_element.r = abs(last_element.real_value - last_element.perfect_value)
+                    print(f"New tqi rejected, {new_x} is worse. So the value is reset to it's original value of {last_element_value}")
+                    print(f"The target value was {last_element.perfect_value}")
+                    print("")
+                
+                                   
+            
+                if avg_tqi < target and selection_string[1] == "d": # we add to our list if the idea is better
+                    # generations.append(all_blocks)
+                    target = avg_tqi
+                    best_tqi = avg_tqi 
+                    print(f"New tqi accepted, {new_x} is better than {last_element_value}")
+                    print(f"The target value was {last_element.perfect_value}")
+                    print("")
+                    
+                    p2 = lamb * (p2) + (1-lamb) * (psi)
+                    p2 = round(p2,2)
+                    
+                    if p2 >= 1:
+                        p2 = 0.99
+                        
+                    pOT = 1 - p2
+                    pOT = round(pOT, 2)
+                    
+                    pOC = lamb * (pOC) + (1-lamb) * (psi)
+                    pOC = round(pOC,2)
+                    
+                    if pOC >= 1:
+                        pOC = 0.99
+                        
+                    p3 = 1 - pOC
+                    p3 = round(p3, 2)
+                    
+                    print(f"New statistical chance is p2 : {p2} vs pOT : {pOT} and pOC: {pOC} vs p3: {p3}")
+            
+                elif avg_tqi >= target and selection_string[1] == "d":
                     last_element.real_value = last_element_value # reset the proper value
                     last_element.r = abs(last_element.real_value - last_element.perfect_value)
                     print(f"New tqi rejected, {new_x} is worse. So the value is reset to it's original value of {last_element_value}")
@@ -710,36 +828,37 @@ if algorithm_3:
                 
                 
                 
-                
-            
-                if avg_tqi < target and pOC < p3 and p2 < pOT: # we add to our list if the idea is better
-                    # generations.append(all_blocks)
-                    target = avg_tqi
-                    best_tqi = avg_tqi 
-                    print(f"New tqi accepted, {new_x} is better than {last_element_value}")
-                    print(f"The target value was {last_element.perfect_value}")
-                    print("")
-            
-                elif avg_tqi >= target and pOC < p3 and p2 < pOT:
-                    last_element.real_value = last_element_value # reset the proper value
-                    last_element.r = abs(last_element.real_value - last_element.perfect_value)
-                    print(f"New tqi rejected, {new_x} is worse. So the value is reset to it's original value of {last_element_value}")
-                    print(f"The target value was {last_element.perfect_value}")
-                    print("")
-                
-                
-                
+            elif selection_string[0] == "b":
         
-        
-                if avg_tqi < target and p4 < pTC and pOT < p2: # we add to our list if the idea is better
+                if avg_tqi < target and selection_string [2] == "e": # we add to our list if the idea is better
                     # generations.append(all_blocks)
                     target = avg_tqi
                     best_tqi = avg_tqi 
                     print(f"New tqi accepted, {new_x} and {new_x_1} is better than {last_element_value} and {last_element_value_1}")
                     print(f"The target value was {last_element.perfect_value} and {last_element_1.perfect_value}")
                     print("")
+                    
+                    pOT = lamb * (pOT) + (1-lamb) * (psi)
+                    pOT = round(pOT,2)
+                    
+                    if pOT >= 1: 
+                        pOT = 0.99
+                    
+                    p2 = 1 - pOT
+                    p2 = round (p2,2)
+                    
+                    p4 = lamb * (p4) + (1-lamb) * (psi)
+                    p4 = round(p4,2)
+                    
+                    if p4 >= 1:
+                        p4 == 0.99
+                        
+                    pTC = 1 - p4 
+                    pTC = round(pTc,2)
+                    
+                    print(f"New statistical chance is pOT : {pOT} vs p2 : {p2} and p4: {p4} vs pTC: {p4}")
         
-                elif avg_tqi >= target and p4 < pTC and pOT < p2:
+                elif avg_tqi >= target and selection_string [2] == "e":
                     last_element.real_value = last_element_value # reset the proper value
                     last_element_1.real_value = last_element_value_1
                     last_element.r = abs(last_element.real_value - last_element.perfect_value)
@@ -747,19 +866,38 @@ if algorithm_3:
                     print(f"New tqi rejected, {new_x} and {new_x_1} is worse. So the value is reset to it's original value of {last_element_value} and {last_element_value_1}")
                     print(f"The target value was {last_element.perfect_value} and {last_element_1.perfect_value}")
                     print("")
-                
-                
             
             
-                if avg_tqi < target and pTC < p4 and pOT < p2: # we add to our list if the idea is better
+            
+                if avg_tqi < target and selection_string[2] == "f": # we add to our list if the idea is better
                     # generations.append(all_blocks)
                     target = avg_tqi
                     best_tqi = avg_tqi 
                     print(f"New tqi accepted, {new_x} and {new_x_1} is better than {last_element_value} and {last_element_value_1}")
                     print(f"The target value was {last_element.perfect_value} and {last_element_1.perfect_value}")
                     print("")
+                    
+                    pOT = lamb * (pOT) + (1-lamb) * (psi)
+                    pOT = round(pOT,2)
+                    
+                    if pOT >= 1:
+                        pOT = 0.99
+                        
+                    p2 = 1 - pOT
+                    p2 = round(p2,2)
+                    
+                    pTC = lamb * (pTC) + (1-lamb) * (psi)
+                    pTC = round(pTC,2)
+                    
+                    if pTC >= 1:
+                        pTc = 0.99
+                        
+                    p4 = 1 - pTC
+                    p4 = round(p4,2)
+                    
+                    print(f"New statistical chance is pOT : {pOT} vs p2 : {p2} and pTC: {pTC} vs p4: {p4}")
         
-                elif avg_tqi >= target and pTC < p4 and pOT < p2:
+                elif avg_tqi >= target and selection_string[2] == "f":
                     last_element.real_value = last_element_value # reset the proper value
                     last_element_1.real_value = last_element_value_1
                     last_element.r = abs(last_element.real_value - last_element.perfect_value)
@@ -768,41 +906,75 @@ if algorithm_3:
                     print(f"The target value was {last_element.perfect_value} and {last_element_1.perfect_value}")
                     print("")
         
-        loop_count += 1
+        selection_string = ""
         
-        pOT = random.uniform(0,1)
-        p2 = random.uniform(0,1)
-        p3 = random.uniform(0,1)
-        pOC = random.uniform(0,1)
-        p4 = random.uniform(0,1)
-        pTC = random.uniform(0,1)
+        if loop_count == 1:
+            # initialization of choices
+            p2 = 0.5  # a
+            pOT = 0.5 # b
             
-        if p2 == pOT: #condition for extremely rare case of same selected number
-            options = ["p2","pOT"]
-            choice = random.choice (options)
-            if choice == "p2":
-                p2 += 0.01
-            else:
-                pOT += 0.01
+            p3 = 0.5  # c
+            pOC = 0.5 # d
+            
+            p4 = 0.5  # e
+            pTC = 0.5 # f
+            
+            
+            for i in range(100):
+                if i < 50:
+                    pOT_vs_p2[i] = "a"
+                    pOC_vs_p3[i] = "c"
+                    pTC_vs_p4[i] = "e"
+                else: 
+                    pOT_vs_p2[i] = "b"
+                    pOC_vs_p3[i] = "d"
+                    pTC_vs_p4[i] = "f"
+            
+            selection_1 = random.choice(pOT_vs_p2)
+            selection_2 = random.choice(pOC_vs_p3)
+            selection_3 = random.choice(pTC_vs_p4)
+            
+            selection_string = selection_1 + selection_2 + selection_3 # ex "ade" corresponds to pOT, p3, and pTC winning
+            
+            print(f"Selection String is : {selection_string} ")
+        
+        else:
+            p2_factor = p2 * 100
+            pOT_factor = pOT * 100
+            
+            p3_factor = p3 * 100
+            pOC_factor = pOC * 100
+            
+            p4_factor = p4 * 100
+            pTC_factor = pTC * 100
+            
+            
+            for i in range(100):
+                if i < p2_factor:
+                    pOT_vs_p2 [i] = "a"
+                elif i >= p2_factor:
+                    pOT_vs_p2 [i] = "b"
+                
+                if i < p3_factor:
+                    pOC_vs_p3[i] = "c"
+                elif i >= p3_factor:
+                    pOC_vs_p3[i] = "d"
+                
+                if i < p4_factor: 
+                    pTC_vs_p4[i] = "e"
+                elif i >= p4_factor: 
+                    pTC_vs_p4[i] = "f"
                     
-        if p3 == pOC: #condition for extremely rare case of same selected number
-            options = ["p3","pOC"]
-            choice = random.choice (options)
-            if choice == "p3":
-                p3 += 0.01
-            else:
-                pOC += 0.01
+            selection_1 = random.choice(pOT_vs_p2)
+            selection_2 = random.choice(pOC_vs_p3)
+            selection_3 = random.choice(pTC_vs_p4)
+            
+            selection_string = selection_1 + selection_2 + selection_3
+            print(f"Selection String is : {selection_string}")
                     
-        if p4 == pTC: #condition for extremely rare case of same selected number
-            options = ["p4","pTC"]
-            choice = random.choice (options)
-            if choice == "p4":
-                p4 += 0.01
-            else:
-                pTC += 0.01        
-            
-            
-        if p3 < pOC and p2 < pOT:
+        loop_count += 1
+                
+        if "ac" in selection_string:
             
             # we need to gen a new idea
             print("p3 and p2 won")
@@ -822,7 +994,9 @@ if algorithm_3:
             # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative
             new_x_1 = 0
             
-        elif p4 < pTC and pOT < p2:
+            
+            
+        elif "b" in selection_string and "e" in selection_string:
             
             print("p4 and pOT won")
             random_block = random.choice(all_blocks)
@@ -851,10 +1025,10 @@ if algorithm_3:
                 
             # now we have generated a new value for this randomly selected element. So we assign the element this value
             random_element_1.real_value = new_x_1
-            random_element_1.r = abs(random_element_1.real_value - random_element_1.perfect_value)
+            random_element_1.r = abs(random_element_1.real_value - random_element_1.perfect_value)         
             
             
-        if pOC < p3 and p2 < pOT:
+        elif "ad" in selection_string:
             
             lowest_r = 1000000
             print("pOC and p2 won")
@@ -877,7 +1051,8 @@ if algorithm_3:
             # so now if we run the loop again, the value should shift ever so slighty. my only concern is that this only ever shifts values UP, because it cannot be negative                
             new_x_1 = 0
             
-        elif pTC < p4 and pOT < p2:
+            
+        elif "b" in selection_string and "f" in selection_string:
             
             lowest_r = 1000000
             print("pTC and pOT won")
@@ -915,6 +1090,8 @@ if algorithm_3:
             # now we have generated a new value for this randomly selected element. So we assign the element this value
             x_s_1.real_value = new_x_1 
             x_s_1.r = abs(x_s_1.real_value - x_s_1.perfect_value)
+            
+             
             
         if loop_count == max_gen + 1: 
             # we are done, we need to compare our clustering here against our original try
