@@ -224,7 +224,87 @@ class PerfectTricluster:
                 j = 0
                 running_sum = 0
                 gene_num += 1
-         
+        
+    @staticmethod
+    def multipleDeletion(tri_value_array):
+        # multiple deletion of swaths of data. The data is removed by gene, exp, and time. So exp 1 could be removed in its entirety. It is expected (I,J,K) is passed in for this method
+        # note, that the values the averages are compared against are ARBITRARY, as they are experimentally set, so this needs to be cleared with Sudipta. The expectation is the result 
+        # of this operation returns a new set of all genes, consisting of non-trash data, and then a "trash data" set is preserved. This is what we apply the other clustering algorithm on
+        # to see if this clusters amicably
+        # for now, I will operate on the premise that data that is outside of x range of the computed average is "garbage". So I will compute a global average, and then compare an average
+        # of each condition (every gene, every exp, every time) against this global average.
+        
+        global_average = 0
+        global_sum = 0
+        global_count = 0
+        
+        all_trash = []
+        trash_genes = [] 
+        trash_exp = []
+        trash_time = []
+        
+        leniency = 6
+        
+        for gene in tri_value_array:
+            global_sum += gene.perfect_value
+            global_count += 1
+            
+        global_average = global_sum / global_count
+        
+        global_high = global_average + leniency
+        global_low = global_average - leniency 
+        
+        # gene specific removal
+        # we need to check by increments of 12, if they fail to satisfy, the values are stored, and replaced with a -1 in org array
+        gene_increment = 0
+        gene_average = 0
+        gene_sum = 0 
+        gene_count = 0
+        gene_index = 0 
+        
+        for gene in tri_value_array:
+            gene_index += 1
+            gene_increment += 1
+                    
+            if gene_increment == 12:
+                gene_average = (1/(exp_amount * time_amount)) * (gene_sum)
+                
+                if gene_average > global_high or gene_average < global_low:
+                    # trash data
+                    # assign -1 to it
+                    temp_gene = tri_value_array[gene_index - 12 : gene_index]
+                    
+                    trash_genes.extend(temp_gene)
+                    
+                    tri_value_array[gene_index - 12 : gene_index] = [-1] * 12 
+                    
+                    tri_value_array = [x for x in my_list if x != -1]
+                    # remove instances of -1
+                    
+                gene_increment = 0 
+                gene_sum = 0
+                gene_average = 0
+                gene_count = 0 
+                    
+                
+                
+            gene_sum += gene.perfect_value
+            gene_count += 1
+        
+        # now trash genes should be gone, so we can move to experimental conditions
+        # TODO EXP CONDITIONS
+        
+        
+        # now trash exp should be gone, so we can move onto time
+        # TODO TIME CONDITIONS
+        
+        # now all trash data should be collected, we can collect them into a single array
+        
+        all_trash.extend(trash_genes)
+        all_trash.extend(trash_exp)
+        all_trash.extend(trash_time)
+                
+
 # PART 1 - MEAN CALC
 
 # GENE MEAN (i)           
@@ -536,7 +616,7 @@ if algorithm_3:
     
     def computeWeirdC(t, t_max, k): # this computes the log sig function. 
         random_num = random.uniform(0,1)
-        log_sig = logSigmoid((0.5 * t_max - t)/(k))
+        log_sig = logSigmoid((0.5 * (t_max - t))/(k))
         result = random_num * log_sig
         return result
     
@@ -854,9 +934,9 @@ if algorithm_3:
                         p4 == 0.99
                         
                     pTC = 1 - p4 
-                    pTC = round(pTc,2)
+                    pTC = round(pTC,2)
                     
-                    print(f"New statistical chance is pOT : {pOT} vs p2 : {p2} and p4: {p4} vs pTC: {p4}")
+                    print(f"New statistical chance is pOT : {pOT} vs p2 : {p2} and p4: {p4} vs pTC: {pTC}")
         
                 elif avg_tqi >= target and selection_string [2] == "e":
                     last_element.real_value = last_element_value # reset the proper value
