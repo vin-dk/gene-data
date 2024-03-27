@@ -83,6 +83,10 @@ mean_objects_time = []
 
 mean_objects_tri = [] 
 
+class TempArray:
+    def __init__(self, array):
+        self.array = array
+
 class MeanObject:
     # simple class to hold mean objects
     def __init__(self, iteration):
@@ -238,12 +242,14 @@ class PerfectTricluster:
         global_sum = 0
         global_count = 0
         
-        all_trash = []
-        trash_genes = [] 
-        trash_exp = []
-        trash_time = []
+        global element_count
+        global exp_amount
+        global time_amount
         
-        leniency = 6
+        all_trash_genes = []
+        trash_genes = []
+        
+        leniency = 1.5
         
         for gene in tri_value_array:
             global_sum += gene.perfect_value
@@ -254,55 +260,173 @@ class PerfectTricluster:
         global_high = global_average + leniency
         global_low = global_average - leniency 
         
-        # gene specific removal
-        # we need to check by increments of 12, if they fail to satisfy, the values are stored, and replaced with a -1 in org array
-        gene_increment = 0
-        gene_average = 0
-        gene_sum = 0 
-        gene_count = 0
-        gene_index = 0 
+        # gene removal
+        to_be_removed = []
         
         for gene in tri_value_array:
-            gene_index += 1
-            gene_increment += 1
-                    
-            if gene_increment == 12:
-                gene_average = (1/(exp_amount * time_amount)) * (gene_sum)
-                
+            gene_sum = 0
+            gene_count = 0
+            gene_average = 0 
+            trash_genes.append(gene)
+            
+            if len(trash_genes) == 12: # we have to check for if they meet criteria 
+                for i in trash_genes:
+                    gene_sum += i.perfect_value
+                    gene_count += 1
+                gene_average = gene_sum / gene_count 
                 if gene_average > global_high or gene_average < global_low:
-                    # trash data
-                    # assign -1 to it
-                    temp_gene = tri_value_array[gene_index - 12 : gene_index]
+                    # I want to make a temporary object here to house the array 
+                    temp_array = TempArray(trash_genes)
+                    to_be_removed.append(temp_array)
+                    element_count -= 12 
                     
-                    trash_genes.extend(temp_gene)
-                    
-                    tri_value_array[gene_index - 12 : gene_index] = [-1] * 12 
-                    
-                    tri_value_array = [x for x in my_list if x != -1]
-                    # remove instances of -1
-                    
-                gene_increment = 0 
-                gene_sum = 0
-                gene_average = 0
-                gene_count = 0 
-                    
+                trash_genes = []
+        
+        for i in to_be_removed:
+            temp_array = i.array
+            for j in temp_array:
+                tri_value_array.remove(j)
+                all_trash_genes.append(j)
+             
+        # exp removal
+        
+        zero_sum = 0
+        one_sum = 0
+        two_sum = 0
+        zero_count = 0
+        one_count = 0
+        two_count = 0
+        zero_average = 0 
+        one_average = 0
+        two_average = 0
+        
+        trash_zero = []
+        trash_one = [] 
+        trash_two = []
+        to_be_removed = []
+        
+        for gene in tri_value_array:
+            if gene.exp == 0:
+                zero_sum += gene.perfect_value
+                zero_count += 1
+                trash_zero.append(gene)
+            if gene.exp == 1:
+                one_sum += gene.perfect_value
+                one_count += 1
+                trash_one.append(gene)
+            if gene.exp == 2: 
+                two_sum += gene.perfect_value
+                two_count += 1
+                trash_two.append(gene)
+        
+        zero_average = zero_sum / zero_count
+        one_average = one_sum / one_count
+        two_average = two_sum / two_count
+        
+        if zero_average > global_high or two_average < global_low:
+            for i in trash_zero:
+                temp_array = TempArray(trash_zero)
+                to_be_removed.append(temp_array)
+                exp_amount -= 1
+        
+        if one_average > global_high or two_average < global_low:
+            for i in trash_one:
+                temp_array = TempArray(trash_one)
+                to_be_removed.append(temp_array)
+                exp_amount -= 1
+        
+        if two_average > global_high or two_average < global_low:
+            for i in trash_two:
+                temp_array = TempArray(trash_two)
+                to_be_removed.append(temp_array)
+                exp_amount -= 1
                 
+        
+        for i in to_be_removed:
+            temp_array = i.array
+            for j in temp_array:
+                tri_value_array.remove(j)
+                all_trash_genes.append(j)
+        
+        # time removal
+        zero_sum = 0
+        one_sum = 0
+        two_sum = 0
+        three_sum = 0 
+        zero_count = 0
+        one_count = 0
+        two_count = 0
+        three_count = 0
+        zero_average = 0 
+        one_average = 0
+        two_average = 0
+        three_average = 0
+    
+        trash_zero = []
+        trash_one = [] 
+        trash_two = []
+        trash_three = []
+        to_be_removed = []
+    
+        for gene in tri_value_array:
+            if gene.time == 0:
+                zero_sum += gene.perfect_value
+                zero_count += 1
+                trash_zero.append(gene)
+            if gene.time == 1:
+                one_sum += gene.perfect_value
+                one_count += 1
+                trash_one.append(gene)
+            if gene.time == 2: 
+                two_sum += gene.perfect_value
+                two_count += 1
+                trash_two.append(gene)
+            if gene.time == 3:
+                three_sum += gene.perfect_value
+                three_count += 1
+                trash_three.append(gene)
+    
+        zero_average = zero_sum / zero_count
+        one_average = one_sum / one_count
+        two_average = two_sum / two_count
+        three_average = three_sum / three_count
+    
+        if zero_average > global_high or zero_average < global_low:
+            for i in trash_zero:
+                temp_array = TempArray(trash_zero)
+                to_be_removed.append(temp_array)
+                time_amount -= 1
+    
+        if one_average > global_high or one_average < global_low:
+            for i in trash_one:
+                temp_array = TempArray(trash_one)
+                to_be_removed.append(temp_array)
+                time_amount -= 1
+    
+        if two_average > global_high or two_average < global_low:
+            for i in trash_two:
+                temp_array = TempArray(trash_two)
+                to_be_removed.append(temp_array)
+                time_amount -= 1
+        
+        if three_average > global_high or three_average < global_low:
+            for i in trash_three:
+                temp_array = TempArray(trash_three)
+                to_be_removed.append(temp_array)
+                time_amount -= 1
                 
-            gene_sum += gene.perfect_value
-            gene_count += 1
+        for i in to_be_removed:
+            temp_array = i.array
+            for j in temp_array:
+                tri_value_array.remove(j)
+                all_trash_genes.append(j)
         
-        # now trash genes should be gone, so we can move to experimental conditions
-        # TODO EXP CONDITIONS
+        to_be_removed = []
+        print(f"The computed global average is: {global_average} from {global_count} genes")
+        print(f"Now the gene count is: {element_count}, exp: {exp_amount}, time {time_amount}")
+        print(f"The averages of time, in order: {zero_average}, {one_average}, {two_average},{three_average}")
         
-        
-        # now trash exp should be gone, so we can move onto time
-        # TODO TIME CONDITIONS
-        
-        # now all trash data should be collected, we can collect them into a single array
-        
-        all_trash.extend(trash_genes)
-        all_trash.extend(trash_exp)
-        all_trash.extend(trash_time)
+        return all_trash_genes
                 
 
 # PART 1 - MEAN CALC
@@ -410,8 +534,8 @@ if algorithm_1 :
 # the range will then be original(i,j,k) - perfect(i,j,k) 
 
 total_genes = (element_count/12)
-total_exp = 3
-total_time = 4
+total_exp = exp_amount
+total_time = time_amount
 total_coverage = total_genes * total_exp * total_time 
 
 observed_exp = []
@@ -612,11 +736,17 @@ if algorithm_3:
     # generations essentially contains the exact same list in each index. It is a placeholder for this implementation 
     
     def logSigmoid(x): # for brevity
-        return 1 / (1 + np.exp(-np.log(x)))     
+        print(f"The attempted log sigmoid pass is: {x}")
+        # PLACEHOLDER JUST TO FORCE IT TO WORK
+        if x >= 0 and x < 2.0:
+            x = 50.0
+        return 1 / (1 + np.exp(-np.log(x)))
+    
     
     def computeWeirdC(t, t_max, k): # this computes the log sig function. 
         random_num = random.uniform(0,1)
         log_sig = logSigmoid((0.5 * (t_max - t))/(k))
+        print(f"The computed log sig is : {log_sig}")
         result = random_num * log_sig
         return result
     
@@ -628,57 +758,13 @@ if algorithm_3:
             x_new = (weird_c * random_num) + x_old
         elif choice == "-":
             x_new = x_old - (weird_c * random_num)
-            
+        
+        print(f"New x was computed, the old x was: {x_old}, and the new x was computed as {x_new}")     
         return x_new
-    
-    def computeNewProb(prob_a,prob_b, array_a, array_b):
-        # couple of notes, we use the formula they outline for the roulette wheel, but not destruction and reinsertion of elements
-        # I only implement the roulette wheel, probability update function
-        # I am sure I could figure out destruction and reinsertion, but I expect it would drastically change the core implementation
-        # some liberties are taken, particulary for "psi" (w). I only consider acceptance and rejection, because global scores and better don't matter
-        # due to no destruction. And acceptance is only preferred if tqi is objectively better (not equal), hence, there are only two factors psi.
-        # We want to select factors lambda and psi wisely, so that acceptance strictly increases probability. We also need to be rid of simple comparison
-        # such that the 0.xx probability is consistent and actually reflects the chance of being chosen. The way I will accomplish this is by populating
-        # an array of 100 elements with each probability, where 0.65 populates 65 elements into the array. Then choose randomly from it. I will make the 
-        # lambda (decay) factor 0.5, which results in each number being cut in half
-        
-        # the reason I have for this is that I think in the case of our problem, removing elements doesn't actually make any sense, we want to see where everything is 
-        # sorted, but it also means whatever computed amount prob_a is, 1 - prob_a = prob_b
-        # I am actually unsure of how to handle the destruction variables and such so for now psi is 1, and the update is actually lambda(prob_a) + (1-lambda) (1)
-        # I am setting lambda = 0.9 for very small increases
-        
-        # IMPORTANT, WINNING PATH IS ALWAYS PASSED IN AS A AS IT IS THE WINNING PATH
-        
-        # placeholder
-        
-        lamb = 0.9
-        psi = 1
-        
-        choices = []
-        
-        prob_a = lamb(prob_a) + (1 - lamb)(psi)
-        prob_b = (1 - prob_a)
-        
-        prob_a = round(prob_a,2)
-        prob_b = round(prob_a,2)
-        
-        if prob_a >= 1: # guard against locking in one path, and screwing up the choice algo
-            prob_a = 0.99
-            prob_b = 0.01
-        
-        if prob_b >= 1: # guard against locking in one path
-            prob_b = 0.99
-            prob_a = 0.01
             
-        selection_a = prob_a * 100
-        selection_b = prob_b * 100
-    
-    
-        
-        
     
     done = False # determines termination of loop
-    loop_count = 1 # how many time loop has ran
+    loop_count = 0 # how many time loop has ran
     best_tqi = 0 # current running best tqi
     original_tqi = 0 # this is good to have to compare against the best one we produced
     
@@ -720,6 +806,10 @@ if algorithm_3:
     psi = 1
     lamb = 0.9
     lamb_fac = 0.01 # introduced to have a bit of variance, can easily be taken away
+    
+    trash_values = PerfectTricluster.multipleDeletion(tricluster_object_elements)
+    # so the intention behind this process is: tricluster_object_elements is altered to not include the trash data
+    # and trash_values is the array that holds the trash data itself (to work on later)
     
     
     while not done:
@@ -810,15 +900,17 @@ if algorithm_3:
         total_coverage = (numer/denom) * 100
         
         print(f"All blocks average TQI of: {avg_tqi} with coverage: {total_coverage} from {block_count} blocks and {length} elements")
+        print(f"Loop count is {loop_count}")
         print("")
         
         
-        if loop_count == 1:
+        
+        if loop_count == 0:
             # we store the avg tqi, and a snapshot of the original clustering to compare against
             target = avg_tqi
             snapshot = copy.deepcopy(all_blocks)
      
-        if loop_count > 1: 
+        if loop_count > 0: 
             
             choice = ["+","-"]
             plus_minus = random.choice(choice)
@@ -988,7 +1080,7 @@ if algorithm_3:
         
         selection_string = ""
         
-        if loop_count == 1:
+        if loop_count == 0:
             # initialization of choices
             p2 = 0.5  # a
             pOT = 0.5 # b
