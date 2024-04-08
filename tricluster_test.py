@@ -2,6 +2,7 @@ import pandas as pd
 import random
 import numpy as np
 import copy
+from sklearn.cluster import DBSCAN
 
 # gene reference names as per sample dataset
 gene_ref = []
@@ -22,7 +23,7 @@ algorithm_1 = False # by r mean
 algorithm_2 = False # random block
 algorithm_3 = True # chaos block 
 
-num_genes = 4000
+num_genes = 54675
 
 gene_ref = df.iloc[0:num_genes, 0].tolist()
 zero_1 = df.iloc[0:num_genes, 1].tolist()
@@ -61,7 +62,7 @@ exp_index = 0
 
 time_index = 0 # these are used to determine correct arrays
 
-# these are values recorded for each gene_ref above. so we can consider it in this way that [1,3,1] refers to [gene 1, condition 3, zero hour] or [i,j,k) and so on
+# these are values recorded for each gene_ref above. so we can consider it in this way that [1,3,1] refers to [gene 1, condition 3, zero hour] or [i,j,k] and so on
 # I will be closely following the method outlined in the email, hand calculations should be easy to check logic
 
 
@@ -427,6 +428,10 @@ class PerfectTricluster:
         print(f"The averages of time, in order: {zero_average}, {one_average}, {two_average},{three_average}")
         
         return all_trash_genes
+    
+    @staticmethod
+    def extract_real_values(dataset):
+        return np.array([obj.real_value for obj in dataset])    
                 
 
 # PART 1 - MEAN CALC
@@ -738,7 +743,7 @@ if algorithm_3:
     def logSigmoid(x): # for brevity
         print(f"The attempted log sigmoid pass is: {x}")
         # PLACEHOLDER JUST TO FORCE IT TO WORK
-        if x >= 0 and x < 2.0:
+        if x < 2.0:
             x = 50.0
         return 1 / (1 + np.exp(-np.log(x)))
     
@@ -825,14 +830,14 @@ if algorithm_3:
         
         block_elements = tricluster_object_elements  # original full (i,j,k) list
         
-        if loop_count < max_gen:
+        if loop_count <= max_gen:
             blocks_done = False
         
         while not blocks_done:
             
             total_genes = (element_count/12)
-            total_exp = 3
-            total_time = 4
+            total_exp = exp_amount
+            total_time = time_amount
                 
             block = []  # a singular block
             left_over = []  # elements not fitting into block
@@ -1272,9 +1277,11 @@ if algorithm_3:
             blocks_done = True
             
             for block in all_blocks:
-                for element in block:
+                for element in block.block:
+                    old_r = element.r
                     element.real_value = element.org_real_value
                     element.r = abs(element.real_value - element.perfect_value)
+                    
             
             # so now we should have clustering according to the algorithm above, but our real values are reinserted into the clusters
             
@@ -1327,5 +1334,152 @@ if algorithm_3:
             
             
             # TO DO: FILE EXPORT OF TRIAL RUNS
+            
+            # This section is dedicated to reclustering of the trash data. The implementation now is clustering it together, and leaving it separate, and analyzing it in this way
+            # the reason for this is that it doesnt actually improve efficiency to add data back in soon. However, a procedure to consider is to add the data back in after the last 
+            # iteraton is complete, and then cluster it one last time. This should cluster all the data together, while preserving efficiency, just to analyze potential relationships.
+            
+            # Define initial parameters
+            eps_initial = 0.5
+            min_samples_initial = 5
+
+            # Define the percentage threshold for remaining dataset
+            remaining_threshold = 0.05
+
+            clusters = []
+
+            while len(trash_values) > remaining_threshold * len(trash_values):
+                # Extract "real_value" field from the dataset
+                real_values = PerfectTricluster.extract_real_values(trash_values)
+    
+                # Run DBSCAN with current parameters
+                dbscan = DBSCAN(eps=eps_initial, min_samples=min_samples_initial)
+                dbscan.fit(real_values.reshape(-1, 1))  # Reshape to fit DBSCAN input requirements
+    
+                # Extract the first identified cluster
+                labels = dbscan.labels_
+                cluster_indices = np.where(labels == 0)[0]  # Assuming cluster 0 is the first identified cluster
+                cluster = [trash_values[i] for i in cluster_indices]
+                clusters.append(cluster)
+    
+                # Remove the identified cluster from the dataset
+                trash_values = [obj for i, obj in enumerate(trash_values) if i not in cluster_indices]
+    
+                # Adjust parameters for the next iteration (if needed)
+                eps_initial += 0.5
+                min_samples_initial += 1
+
+            # Declare the remaining points as outliers
+            outliers = trash_values
+
+            # So this will determine centroids, and create new blocks, these blocks will then be appended to the final version, and the clustering algorithm ran one final time
+            for cluster in clusters:
+                centroid = sum(obj.real_value for obj in cluster) / len(cluster)
+                print("Centroid:", centroid)
+                block = Block(cluster,block_amount)
+                block_amount += 1
+                all_blocks.append(block)
+            
+            new_list = []
+            for block in all_blocks:
+                for element in block.block:
+                    new_list.append(element)
+            
+            
+            
+            blocks_done = False  # all blocks assigned if true
+            all_blocks = []
+            left_over = [] 
+            constant = 0  # this can be changed but 0 for now
+            block_amount = 0
+            stop_at = 100  # same as above
+            block_elements = new_list  # original full (i,j,k) list
+
+            while not blocks_done:
+
+                block = []  # a singular block
+                left_over = []  # elements not fitting into block
+
+                block_start = block_elements[0]  # start up with first element
+                lower_bound = block_start.real_value
+                upper_bound = lower_bound + abs(block_start.r) + constant
+
+                for tri in block_elements:
+                    if tri.real_value >= lower_bound and tri.real_value <= upper_bound: 
+                        block.append(tri) # in range
+                    else:
+                        left_over.append(tri) # not in range
+
+                all_blocks.append(Block(block, block_amount)) # in range get assigned into block
+
+                block_amount += 1
+
+                block_elements = left_over
+
+                block = []
+
+                if len(block_elements) <= stop_at: # handle terminating conditions, in this case we DO NOT append the last block
+                    for instance in block_elements:
+                        block.append(instance)
+                    all_blocks.append(Block(block, block_amount))
+                    blocks_done = True
+
+                elif not block_elements:
+                    blocks_done = True
+                    
+            
+                      
         
-                        
+            for block in all_blocks:
+                # important to calc coverage before TQI
+                length += block.size
+                block.calcRange()
+                block.calcCoverage()
+                block.calcTQI()
+                tqi_count += 1 
+                tqi_sum += block.TQI
+                block_count += 1
+
+
+            avg_tqi = tqi_sum/tqi_count
+
+
+            print(f"The calculated tqi is: {avg_tqi}")
+
+            length = 0
+            total_coverage = 0
+            tqi_sum = 0
+            tqi_count = 0
+            avg_tqi = 0
+            block_count = 0            
+
+            for block in snapshot:
+                # important to calc coverage before TQI
+                length += block.size
+                block.calcRange()
+                block.calcCoverage()
+                block.calcTQI()
+                tqi_count += 1 
+                tqi_sum += block.TQI
+                block_count += 1
+
+
+            avg_tqi = tqi_sum/tqi_count             
+
+
+            print(f"The original tqi is: {avg_tqi}")
+            
+            block_co = 0
+            with open("trial_1.txt", "w") as file:
+                for block in all_blocks:
+                    block_co += 1
+                    file.write(f"Block {block_co}:\n")
+                    for element in block.block:
+                        file.write(f"{element.gene_ref}\n")
+                    file.write("\n")  # Adding newline to indicate the end of the block
+                    
+                    
+                
+                
+                # The most important part, we will export a list of every block, with their gene reference
+                # TO DO: EXPORT CLUSTERS TO FILE SO WE CAN INSPECT IN DAVID
