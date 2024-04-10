@@ -23,7 +23,7 @@ algorithm_1 = False # by r mean
 algorithm_2 = False # random block
 algorithm_3 = True # chaos block 
 
-num_genes = 54675
+num_genes = 2000
 
 gene_ref = df.iloc[0:num_genes, 0].tolist()
 zero_1 = df.iloc[0:num_genes, 1].tolist()
@@ -250,7 +250,7 @@ class PerfectTricluster:
         all_trash_genes = []
         trash_genes = []
         
-        leniency = 1.5
+        leniency = 1
         
         for gene in tri_value_array:
             global_sum += gene.perfect_value
@@ -741,8 +741,7 @@ if algorithm_3:
     # generations essentially contains the exact same list in each index. It is a placeholder for this implementation 
     
     def logSigmoid(x): # for brevity
-        print(f"The attempted log sigmoid pass is: {x}")
-        # PLACEHOLDER JUST TO FORCE IT TO WORK
+        # Protect against illegitimate pass 
         if x < 2.0:
             x = 50.0
         return 1 / (1 + np.exp(-np.log(x)))
@@ -751,7 +750,6 @@ if algorithm_3:
     def computeWeirdC(t, t_max, k): # this computes the log sig function. 
         random_num = random.uniform(0,1)
         log_sig = logSigmoid((0.5 * (t_max - t))/(k))
-        print(f"The computed log sig is : {log_sig}")
         result = random_num * log_sig
         return result
     
@@ -1279,6 +1277,7 @@ if algorithm_3:
             for block in all_blocks:
                 for element in block.block:
                     old_r = element.r
+                    old_real = element.real_value
                     element.real_value = element.org_real_value
                     element.r = abs(element.real_value - element.perfect_value)
                     
@@ -1475,7 +1474,7 @@ if algorithm_3:
                     block_co += 1
                     file.write(f"Block {block_co}:\n")
                     for element in block.block:
-                        file.write(f"{element.gene_ref}\n")
+                        file.write(f"{element.id} , at experiment {element.exp} and time {element.time} \n")
                     file.write("\n")  # Adding newline to indicate the end of the block
                     
                     
