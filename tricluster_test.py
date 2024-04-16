@@ -23,7 +23,7 @@ algorithm_1 = False # by r mean
 algorithm_2 = False # random block
 algorithm_3 = True # chaos block 
 
-num_genes = 2000
+num_genes = 54675
 
 gene_ref = df.iloc[0:num_genes, 0].tolist()
 zero_1 = df.iloc[0:num_genes, 1].tolist()
@@ -643,6 +643,48 @@ class Block:
     # def calcSDB(self):
         # calculates statistical difference from background (of entire tricluster set) 
         # this is a place holder for discussion tmr
+    
+def export_data(trash_values, all_blocks):
+    with open("exported_data.txt", "w") as file:
+        # Export trash_values
+        file.write("trash_values:\n")
+        for tricluster in trash_values:
+            file.write("PerfectTricluster:\n")
+            file.write(f"id: {tricluster.id}\n")
+            file.write(f"real_value: {tricluster.real_value}\n")
+            file.write(f"gene: {tricluster.gene}\n")
+            file.write(f"exp: {tricluster.exp}\n")
+            file.write(f"time: {tricluster.time}\n")
+            file.write(f"tri_mean: {tricluster.tri_mean}\n")
+            file.write(f"perfect_value: {tricluster.perfect_value}\n")
+            file.write(f"org_real_value: {tricluster.org_real_value}\n")
+            file.write(f"array_index: {tricluster.array_index}\n")
+            file.write(f"r: {tricluster.r}\n\n")            
+        
+        # Export all_blocks
+        file.write("all_blocks:\n")
+        for block in all_blocks:
+            file.write("Block:\n")
+            file.write(f"block_num: {block.block_num}\n")
+            file.write(f"size: {block.size}\n")
+            file.write(f"coverage: {block.coverage}\n")
+            file.write(f"TQI: {block.TQI}\n")
+            file.write(f"gene_count: {block.gene_count}\n")
+            file.write(f"exp_count: {block.exp_count}\n")
+            file.write(f"time_count: {block.time_count}\n")
+            file.write("PerfectTriclusters:\n")
+            for tricluster in block.block:
+                file.write("PerfectTricluster:\n")
+                file.write(f"id: {tricluster.id}\n")
+                file.write(f"real_value: {tricluster.real_value}\n")
+                file.write(f"gene: {tricluster.gene}\n")
+                file.write(f"exp: {tricluster.exp}\n")
+                file.write(f"time: {tricluster.time}\n")
+                file.write(f"tri_mean: {tricluster.tri_mean}\n")
+                file.write(f"perfect_value: {tricluster.perfect_value}\n")
+                file.write(f"org_real_value: {tricluster.org_real_value}\n")
+                file.write(f"array_index: {tricluster.array_index}\n")
+                file.write(f"r: {tricluster.r}\n\n")
         
         
             
@@ -813,6 +855,43 @@ if algorithm_3:
     trash_values = PerfectTricluster.multipleDeletion(tricluster_object_elements)
     # so the intention behind this process is: tricluster_object_elements is altered to not include the trash data
     # and trash_values is the array that holds the trash data itself (to work on later)
+    
+    # Extract real values and another field (.r)
+    real_values = np.array([obj.real_value for obj in trash_values])
+    other_field_values = np.array([obj.r for obj in trash_values])
+
+    # Combine real_values and other_field_values to create a 2D array
+    combined_values = np.column_stack((real_values, other_field_values))
+
+    # Initialize variables
+    total_data = len(combined_values)
+    data_covered = 0
+    clusters = []
+
+    # Run DBSCAN with initial parameters
+    eps_initial = 0.1  # You may need to adjust these parameters
+    min_samples_initial = 5
+    dbscan = DBSCAN(eps=eps_initial, min_samples=min_samples_initial)
+    dbscan.fit(combined_values)
+
+    # Extract clusters until reaching the desired threshold
+    labels = dbscan.labels_
+    unique_labels = np.unique(labels)
+    for label in unique_labels:
+        cluster_indices = np.where(labels == label)[0]
+        cluster_size = len(cluster_indices)
+        if cluster_size + data_covered <= total_data * 0.25:
+            # Include this cluster
+            cluster = [trash_values[i] for i in cluster_indices]
+            clusters.append(cluster)
+            data_covered += cluster_size
+        else:
+            # Stop if adding this cluster exceeds the threshold
+            break    
+        
+    # add the relevant values back in 
+    for cluster in clusters:
+        tricluster_object_elements.extend(cluster)
     
     
     while not done:
@@ -1331,13 +1410,13 @@ if algorithm_3:
             
             print(f"The original tqi is: {avg_tqi}")
             
+            export_data(trash_values,all_blocks)
             
-            # TO DO: FILE EXPORT OF TRIAL RUNS
             
             # This section is dedicated to reclustering of the trash data. The implementation now is clustering it together, and leaving it separate, and analyzing it in this way
             # the reason for this is that it doesnt actually improve efficiency to add data back in soon. However, a procedure to consider is to add the data back in after the last 
             # iteraton is complete, and then cluster it one last time. This should cluster all the data together, while preserving efficiency, just to analyze potential relationships.
-            
+            """
             # Define initial parameters
             eps_initial = 0.5
             min_samples_initial = 5
@@ -1427,7 +1506,7 @@ if algorithm_3:
                     blocks_done = True
                     
             
-                      
+            """          
         
             for block in all_blocks:
                 # important to calc coverage before TQI
@@ -1478,7 +1557,6 @@ if algorithm_3:
                     file.write("\n")  # Adding newline to indicate the end of the block
                     
                     
-                
                 
                 # The most important part, we will export a list of every block, with their gene reference
                 # TO DO: EXPORT CLUSTERS TO FILE SO WE CAN INSPECT IN DAVID
