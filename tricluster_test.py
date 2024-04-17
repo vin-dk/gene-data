@@ -13,7 +13,7 @@ gene_ref = []
 # the code in this file IS bloated and unneccessarily verbose. I want it to be as readable as possible and follow a path of logic
 
 # Load Excel file
-excel_file = r"C:\Users\13046\Desktop\data_set.xlsx"
+excel_file = r"C:\Users\MUres\OneDrive\Desktop\gene\data_set.xlsx"
 df = pd.read_excel(excel_file)
 
 # each column of excel sheet is an array, right now it is defined as "first 50 rows of column 0, first 50 rows of column 1..." 
@@ -887,6 +887,7 @@ if algorithm_3:
             data_covered += cluster_size
         else:
             # Stop if adding this cluster exceeds the threshold
+            
             break    
         
     # add the relevant values back in 
