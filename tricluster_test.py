@@ -708,7 +708,7 @@ if algorithm_2:
 
         block_start = block_elements[0]  # start up with first element
         lower_bound = block_start.real_value
-        upper_bound = lower_bound + abs(block_start.r) + constant
+        upper_bound = lower_bound + abs(block_start.r) + constant 
 
         for tri in block_elements:
             if tri.real_value >= lower_bound and tri.real_value <= upper_bound: 
@@ -899,9 +899,9 @@ if algorithm_3:
         
         all_blocks = []
         left_over = [] 
-        constant = 0  # this can be changed but 0 for now
+        constant = -0.2  # this can be changed but 0 for now
         block_amount = 0
-        stop_at = 100  # same as above  
+        stop_at = 200  # same as above  
         observed_exp_loop = []
         observed_time_loop = []
         observed_gene_loop = [] 
@@ -923,6 +923,8 @@ if algorithm_3:
             block_start = block_elements[0]  # start up with first element
             lower_bound = block_start.real_value
             upper_bound = lower_bound + abs(block_start.r) + constant
+            if upper_bound <= lower_bound:
+                upper_bound = lower_bound + 0.1 
 
             for tri in block_elements:
                 
@@ -1549,7 +1551,7 @@ if algorithm_3:
             print(f"The original tqi is: {avg_tqi}")
             
             block_co = 0
-            with open("trial_1.txt", "w") as file:
+            with open("trial_3.txt", "w") as file:
                 for block in all_blocks:
                     block_co += 1
                     file.write(f"Block {block_co}:\n")
