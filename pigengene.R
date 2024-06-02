@@ -1,7 +1,28 @@
-# Load necessary library
+# Load necessary libraries
 library(readxl)
 library(Pigengene)
 library(HDO.db)
+
+# Function to compute eigengenes
+compute_eigengene <- function(expression_data) {
+  # Check for constant or zero columns
+  constant_cols <- apply(expression_data, 2, function(x) all(x == x[1]))
+  zero_cols <- apply(expression_data, 2, function(x) all(x == 0))
+  
+  # Exclude constant and zero columns
+  expression_data <- expression_data[, !(constant_cols | zero_cols), drop = FALSE]
+  
+  # Check if any columns remain after exclusion
+  if (ncol(expression_data) == 0) {
+    warning("All columns are constant or zero after preprocessing. Eigengene computation skipped.")
+    return(NULL)
+  }
+  
+  # Compute eigengenes using PCA
+  pca_result <- prcomp(expression_data, scale. = TRUE)
+  eigengene <- pca_result$x[, 1]  # Use the first principal component
+  return(eigengene)
+}
 
 # Read gene expression data from Excel file
 gene_data <- read_excel("C:/Users/13046/Desktop/data_set.xlsx")
@@ -50,3 +71,14 @@ for (cluster_id in names(clusters)) {
 
 # Print the clustered data to verify
 print(clustered_data)
+
+# Compute eigengenes for each cluster
+eigengenes <- list()
+
+for (cluster_id in names(clustered_data)) {
+  cluster_expression <- as.matrix(clustered_data[[cluster_id]][, -1])  # Exclude the gene names
+  eigengenes[[cluster_id]] <- compute_eigengene(cluster_expression)
+}
+
+# Print the eigengenes to verify
+print(eigengenes)
