@@ -1,33 +1,11 @@
 # Load necessary libraries
 library(readxl)
-library(Pigengene)
-library(HDO.db)
-
-# Function to compute eigengenes
-compute_eigengene <- function(expression_data) {
-  # Check for constant or zero columns
-  constant_cols <- apply(expression_data, 2, function(x) all(x == x[1]))
-  zero_cols <- apply(expression_data, 2, function(x) all(x == 0))
-  
-  # Exclude constant and zero columns
-  expression_data <- expression_data[, !(constant_cols | zero_cols), drop = FALSE]
-  
-  # Check if any columns remain after exclusion
-  if (ncol(expression_data) == 0) {
-    warning("All columns are constant or zero after preprocessing. Eigengene computation skipped.")
-    return(NULL)
-  }
-  
-  # Compute eigengenes using PCA
-  pca_result <- prcomp(expression_data, scale. = TRUE)
-  eigengene <- pca_result$x[, 1]  # Use the first principal component
-  return(eigengene)
-}
+library(WGCNA)
 
 # Read gene expression data from Excel file
 gene_data <- read_excel("C:/Users/13046/Desktop/data_set.xlsx")
 
-# Define the path to the text file
+# Define the path to the text file containing cluster information
 file_path <- "C:/Users/13046/Desktop/Work Paper/trials/david_file.txt"
 
 # Read the file into a character vector, each element is a line from the file
@@ -46,39 +24,48 @@ while (i <= length(lines)) {
     # Extract genes from cluster info line
     cluster_genes <- unlist(strsplit(lines[i], ",\\s*"))
     
-    # Store the genes in the clusters list
-    clusters[[cluster_id]] <- cluster_genes
+    # Store the genes in the clusters list if the cluster has more than 100 genes
+    if (length(cluster_genes) > 100) {
+      clusters[[cluster_id]] <- cluster_genes
+    }
   }
   i <- i + 1
 }
 
-# Print the clusters to verify
-print(clusters)
+# Check if there are any empty clusters
+if (any(sapply(clusters, length) == 0)) {
+  cat("Warning: There are empty clusters.\n")
+}
 
-# Initialize a list to store the clustered data
-clustered_data <- list()
+# Remove empty clusters
+clusters <- clusters[sapply(clusters, length) > 0]
 
-# For each cluster, extract the relevant rows from gene_data
+# Check if there are any clusters left
+if (length(clusters) == 0) {
+  stop("Error: No non-empty clusters found.")
+}
+
+# For each cluster, extract the relevant rows from gene_data, transpose, and calculate eigengene
 for (cluster_id in names(clusters)) {
   cluster_genes <- clusters[[cluster_id]]
   
   # Find rows in gene_data that match the cluster genes
   cluster_rows <- gene_data[gene_data[[1]] %in% cluster_genes, ]
   
-  # Store the cluster data in the list
-  clustered_data[[cluster_id]] <- cluster_rows
+  # Convert cluster data to matrix format (rows as genes, columns as samples)
+  expression_matrix <- as.matrix(cluster_rows[, -1])  # Exclude the first column (gene ID)
+  
+  # Transpose expression matrix
+  expression_matrix <- t(expression_matrix)
+  
+  # Assign a unique color for each gene (each column in the transposed matrix)
+  complex_colors_genes <- paste0("color", 1:ncol(expression_matrix))
+  
+  # Calculate eigengene for the current cluster
+  MEList_genes <- moduleEigengenes(expression_matrix, colors = complex_colors_genes)
+  
+  # Print eigengene values for the current cluster
+  cat("Eigengene values for Cluster", cluster_id, ":\n")
+  print(MEList_genes$eigengenes)
+  cat("\n")
 }
-
-# Print the clustered data to verify
-print(clustered_data)
-
-# Compute eigengenes for each cluster
-eigengenes <- list()
-
-for (cluster_id in names(clustered_data)) {
-  cluster_expression <- as.matrix(clustered_data[[cluster_id]][, -1])  # Exclude the gene names
-  eigengenes[[cluster_id]] <- compute_eigengene(cluster_expression)
-}
-
-# Print the eigengenes to verify
-print(eigengenes)
