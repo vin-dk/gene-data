@@ -2,19 +2,18 @@
 library(readxl)
 library(WGCNA)
 
-# Read gene expression data from Excel file
+# expression data of excel file
 gene_data <- read_excel("C:/Users/13046/Desktop/data_set.xlsx")
 
-# Define the path to the text file containing cluster information
+# path to cluster info
 file_path <- "C:/Users/13046/Desktop/Work Paper/trials/david_file.txt"
 
-# Read the file into a character vector, each element is a line from the file
 lines <- readLines(file_path)
 
-# Initialize a list to store clusters
+# init cluster list
 clusters <- list()
 
-# Iterate through the lines to extract cluster info
+# extract cluster info
 i <- 1
 while (i <= length(lines)) {
   if (grepl("^Block", lines[i])) {
@@ -32,40 +31,66 @@ while (i <= length(lines)) {
   i <- i + 1
 }
 
-# Check if there are any empty clusters
+# verify no empty
 if (any(sapply(clusters, length) == 0)) {
   cat("Warning: There are empty clusters.\n")
 }
 
-# Remove empty clusters
+# remove if necessary
 clusters <- clusters[sapply(clusters, length) > 0]
 
-# Check if there are any clusters left
+# check for no clusters
 if (length(clusters) == 0) {
   stop("Error: No non-empty clusters found.")
 }
 
-# For each cluster, extract the relevant rows from gene_data, transpose, and calculate eigengene
-for (cluster_id in names(clusters)) {
-  cluster_genes <- clusters[[cluster_id]]
+# main func, calcs eigengene for each defined cluster (according to text file), finds hub-genes
+calculateModuleEigengenes <- function(gene_data, clusters) {
+  hub_genes <- list()  # Initialize list to store hub genes
   
-  # Find rows in gene_data that match the cluster genes
-  cluster_rows <- gene_data[gene_data[[1]] %in% cluster_genes, ]
+  for (cluster_id in names(clusters)) {
+    cluster_genes <- clusters[[cluster_id]]
+    
+    cluster_rows <- gene_data[gene_data[[1]] %in% cluster_genes, ]
+    
+    expression_matrix <- as.matrix(cluster_rows[, -1])  # exclude gene_id
+    
+    expression_matrix <- t(expression_matrix)
+    
+    colors <- rep(cluster_id, ncol(expression_matrix))
+    
+    MEList <- moduleEigengenes(expression_matrix, colors = colors)
+    
+    cat("Eigengene values for Cluster", cluster_id, ":\n")
+    print(MEList$eigengenes)
+    cat("\n")
+    
+    # Calc pearson
+    cor_coef <- cor(expression_matrix, MEList$eigengenes[, 1])
+    
+    # Sort indicies
+    sorted_indices <- order(cor_coef, decreasing = TRUE)
+    
+    # find top 15 hub_genes
+    top_hub_genes <- cluster_genes[sorted_indices[1:15]]
+    
+    # store with ranks
+    hub_genes[[cluster_id]] <- data.frame(
+      Gene_ID = top_hub_genes,
+      Correlation_Coefficient = cor_coef[sorted_indices[1:15]],
+      Rank_within_Tricluster = 1:15
+    )
+  }
   
-  # Convert cluster data to matrix format (rows as genes, columns as samples)
-  expression_matrix <- as.matrix(cluster_rows[, -1])  # Exclude the first column (gene ID)
-  
-  # Transpose expression matrix
-  expression_matrix <- t(expression_matrix)
-  
-  # Assign a unique color for each gene (each column in the transposed matrix)
-  complex_colors_genes <- paste0("color", 1:ncol(expression_matrix))
-  
-  # Calculate eigengene for the current cluster
-  MEList_genes <- moduleEigengenes(expression_matrix, colors = complex_colors_genes)
-  
-  # Print eigengene values for the current cluster
-  cat("Eigengene values for Cluster", cluster_id, ":\n")
-  print(MEList_genes$eigengenes)
+  return(hub_genes)
+}
+
+# grab
+hub_genes <- calculateModuleEigengenes(gene_data, clusters)
+
+# output of hub-genes
+for (cluster_id in names(hub_genes)) {
+  cat("Top 15 Hub Genes for Cluster", cluster_id, ":\n")
+  print(hub_genes[[cluster_id]])
   cat("\n")
 }
