@@ -1,9 +1,8 @@
-# Load necessary libraries
 library(readxl)
 library(WGCNA)
 library(limma)
 
-# Expression data from an Excel file
+# Raw data
 gene_data <- read_excel("C:/Users/13046/Desktop/data_set.xlsx")
 
 options(max.print = 10000, width = 10000)
@@ -15,17 +14,17 @@ lines <- readLines(file_path)
 # Initialize cluster list
 clusters <- list()
 
-# Extract cluster info
+# Extract cluster info, only if > 100 genes
 i <- 1
 while (i <= length(lines)) {
   if (grepl("^Block", lines[i])) {
     cluster_id <- sub(".*?(\\d+).*", "\\1", lines[i])  # Extract the cluster number
     i <- i + 2  # Skip the block info line
     
-    # Extract genes from cluster info line
+    
     cluster_genes <- unlist(strsplit(lines[i], ",\\s*"))
     
-    # Store the genes in the clusters list if the cluster has more than 100 genes
+  
     if (length(cluster_genes) > 100) {
       clusters[[cluster_id]] <- cluster_genes
     }
@@ -51,8 +50,8 @@ original_matrices <- list()
 
 # Function to calculate module eigengenes and hub genes
 calculateModuleEigengenes <- function(gene_data, clusters, original_matrices) {
-  hub_genes <- list()  # Initialize list to store hub genes
-  eigengenes <- list()  # Initialize list to store eigengenes
+  hub_genes <- list()  
+  eigengenes <- list()  
   
   for (cluster_id in names(clusters)) {
     cluster_genes <- clusters[[cluster_id]]
@@ -60,7 +59,7 @@ calculateModuleEigengenes <- function(gene_data, clusters, original_matrices) {
     cluster_rows <- gene_data[gene_data[[1]] %in% cluster_genes, ]
     
     # Store original untransposed matrix
-    original_matrices[[cluster_id]] <- as.matrix(cluster_rows[, -1])  # Exclude gene_id
+    original_matrices[[cluster_id]] <- as.matrix(cluster_rows[, -1])  
     
     expression_matrix <- t(original_matrices[[cluster_id]])
     
@@ -76,6 +75,14 @@ calculateModuleEigengenes <- function(gene_data, clusters, original_matrices) {
     print(MEList$eigengenes)
     cat("\n")
     
+    # Write eigengene values to master_file_2
+    sink("C:/Users/13046/Desktop/master_file_2.txt", append = TRUE)
+    cat(sprintf("Cluster %s:\n", cluster_id))
+    cat("Eigengene values:\n")
+    print(MEList$eigengenes)
+    cat("\n")
+    sink()  
+    
     # Calculate Pearson correlation coefficients
     cor_coef <- cor(expression_matrix, MEList$eigengenes[, 1])
     
@@ -85,12 +92,20 @@ calculateModuleEigengenes <- function(gene_data, clusters, original_matrices) {
     # Find top 15 hub genes
     top_hub_genes <- cluster_genes[sorted_indices[1:15]]
     
-    # Store hub genes with ranks
+    # Store with ranks
     hub_genes[[cluster_id]] <- data.frame(
       Gene_ID = top_hub_genes,
       Correlation_Coefficient = cor_coef[sorted_indices[1:15]],
       Rank_within_Tricluster = 1:15
     )
+    
+    # Write hub genes to master_file_2
+    sink("C:/Users/13046/Desktop/master_file_2.txt", append = TRUE)
+    cat(sprintf("Cluster %s:\n", cluster_id))
+    cat("Hub genes:\n")
+    print(hub_genes[[cluster_id]])
+    cat("\n")
+    sink()  
   }
   
   return(list(hub_genes = hub_genes, eigengenes = eigengenes, original_matrices = original_matrices))
@@ -99,7 +114,7 @@ calculateModuleEigengenes <- function(gene_data, clusters, original_matrices) {
 # Calculate module eigengenes and hub genes for clusters
 result <- calculateModuleEigengenes(gene_data, clusters, original_matrices)
 
-# Perform differential expression analysis for each cluster and redirect output to file
+# Differential analysis
 sink("C:/Users/13046/Desktop/master_file.txt")
 
 for (cluster_id in names(result$hub_genes)) {
@@ -112,24 +127,24 @@ for (cluster_id in names(result$hub_genes)) {
   print(result$hub_genes[[cluster_id]])
   cat("\n")
   
-  # Perform differential expression analysis
+  # analysis portion
   original_matrix <- result$original_matrices[[cluster_id]]
-  row_names <- clusters[[cluster_id]]  # Directly use the cluster gene list as row names
+  row_names <- clusters[[cluster_id]]  
   
   n_rows <- nrow(original_matrix)
   expression_matrix <- matrix(as.vector(t(original_matrix)), nrow = n_rows, byrow = TRUE)
   
   while (length(row_names) != nrow(expression_matrix)) {
-    row_names <- head(row_names, -1)  # Trim one gene ID from the end
+    row_names <- head(row_names, -1)  
     
-    # Assign row names to the expression matrix
+    
     rownames(expression_matrix) <- row_names
     
     n_rows <- nrow(original_matrix)
     expression_matrix <- matrix(as.vector(t(original_matrix)), nrow = n_rows, byrow = TRUE)
   }
   
-  # Assign row names to the expression matrix
+  
   rownames(expression_matrix) <- row_names
   
   group <- factor(rep(c("Group1", "Group2", "Group3", "Group4"), each = 3))
@@ -162,4 +177,6 @@ for (cluster_id in names(result$hub_genes)) {
   cat("\n")
 }
 
-sink()  # Close the sink
+sink()  
+
+# EOF
