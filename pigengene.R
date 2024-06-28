@@ -147,10 +147,7 @@ for (cluster_id in names(result$hub_genes)) {
   for (i in 1:ncol(contrast_matrix)) {
     contrast_name <- colnames(contrast_matrix)[i]
     top_genes <- topTable(fit_contrast, coef = i, adjust = "BH")
-    filtered_genes <- top_genes[abs(top_genes$logFC) > 2 & top_genes$P.Value < 0.001, ]
-    
-    # Replace row numbers with gene IDs
-    filtered_genes$Gene_ID <- replaceRowNumbersWithGeneIDs(filtered_genes$Gene_ID, row_names)
+    filtered_genes <- top_genes[top_genes$adj.P.Val <= 0.5, ]
     
     cat("Top Differentially Expressed Genes for", contrast_name, ":\n")
     print(filtered_genes)
