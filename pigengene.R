@@ -6,6 +6,8 @@ library(limma)
 # Expression data from an Excel file
 gene_data <- read_excel("C:/Users/13046/Desktop/data_set.xlsx")
 
+options(max.print = 10000, width = 10000)
+
 # Path to cluster info
 file_path <- "C:/Users/13046/Desktop/Work Paper/trials/david_file.txt"
 lines <- readLines(file_path)
@@ -126,7 +128,7 @@ for (cluster_id in names(result$hub_genes)) {
     n_rows <- nrow(original_matrix)
     expression_matrix <- matrix(as.vector(t(original_matrix)), nrow = n_rows, byrow = TRUE)
   }
-
+  
   # Assign row names to the expression matrix
   rownames(expression_matrix) <- row_names
   
@@ -148,17 +150,34 @@ for (cluster_id in names(result$hub_genes)) {
   fit_contrast <- contrasts.fit(fit, contrast_matrix)
   fit_contrast <- eBayes(fit_contrast)
   
+  # Initialize a list to store differentially expressed gene IDs for this cluster
+  cluster_diff_genes <- character()
+  
   for (i in 1:ncol(contrast_matrix)) {
     contrast_name <- colnames(contrast_matrix)[i]
-    top_genes <- topTable(fit_contrast, coef = i, adjust = "BH")
+    top_genes <- topTable(fit_contrast, coef = i, adjust = "BH", number = Inf)
     
     # Filter based on adjusted p-value criterion
     filtered_genes <- top_genes[top_genes$adj.P.Val <= 0.5, ]
+    
+    # Store differentially expressed gene IDs
+    cluster_diff_genes <- c(cluster_diff_genes, filtered_genes$Gene_ID)
     
     cat("Top Differentially Expressed Genes for", contrast_name, ":\n")
     print(filtered_genes)
     cat("\n")
   }
+  
+  # Store unique differentially expressed gene IDs for this cluster
+  all_diff_genes <- unique(cluster_diff_genes)
+  
+  # Calculate percentage of differentially expressed genes compared to total genes
+  total_genes <- length(clusters[[cluster_id]])
+  total_diff_genes <- length(all_diff_genes)
+  percentage_diff <- (total_diff_genes / total_genes) * 100
+  
+  cat(sprintf("Total differentially expressed genes in Cluster %s is: %d out of %d genes (%.2f%%)\n\n", 
+              cluster_id, total_diff_genes, total_genes, percentage_diff))
 }
 
 sink()  # Close the sink
