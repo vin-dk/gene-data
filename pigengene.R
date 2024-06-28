@@ -118,6 +118,7 @@ for (cluster_id in names(result$hub_genes)) {
   expression_matrix <- matrix(as.vector(t(original_matrix)), nrow = n_rows, byrow = TRUE)
   
   while (length(row_names) != nrow(expression_matrix)) {
+    row_names <- head(row_names, -1)  # Trim one gene ID from the end
     
     # Assign row names to the expression matrix
     rownames(expression_matrix) <- row_names
@@ -125,8 +126,7 @@ for (cluster_id in names(result$hub_genes)) {
     n_rows <- nrow(original_matrix)
     expression_matrix <- matrix(as.vector(t(original_matrix)), nrow = n_rows, byrow = TRUE)
   }
-  
-  
+
   # Assign row names to the expression matrix
   rownames(expression_matrix) <- row_names
   
