@@ -24,7 +24,7 @@ while (i <= length(lines)) {
     
     cluster_genes <- unlist(strsplit(lines[i], ",\\s*"))
     
-  
+    
     if (length(cluster_genes) > 100) {
       clusters[[cluster_id]] <- cluster_genes
     }
@@ -117,6 +117,9 @@ result <- calculateModuleEigengenes(gene_data, clusters, original_matrices)
 # Differential analysis
 sink("C:/Users/13046/Desktop/master_file.txt")
 
+
+diff_exp_genes <- list()
+
 for (cluster_id in names(result$hub_genes)) {
   cat("Cluster", cluster_id, ":\n")
   cat("Eigengene values:\n")
@@ -127,7 +130,7 @@ for (cluster_id in names(result$hub_genes)) {
   print(result$hub_genes[[cluster_id]])
   cat("\n")
   
-  # analysis portion
+  # Analysis portion
   original_matrix <- result$original_matrices[[cluster_id]]
   row_names <- clusters[[cluster_id]]  
   
@@ -136,14 +139,10 @@ for (cluster_id in names(result$hub_genes)) {
   
   while (length(row_names) != nrow(expression_matrix)) {
     row_names <- head(row_names, -1)  
-    
-    
     rownames(expression_matrix) <- row_names
-    
     n_rows <- nrow(original_matrix)
     expression_matrix <- matrix(as.vector(t(original_matrix)), nrow = n_rows, byrow = TRUE)
   }
-  
   
   rownames(expression_matrix) <- row_names
   
@@ -165,6 +164,8 @@ for (cluster_id in names(result$hub_genes)) {
   fit_contrast <- contrasts.fit(fit, contrast_matrix)
   fit_contrast <- eBayes(fit_contrast)
   
+  diff_exp_genes[[cluster_id]] <- c()  
+  
   for (i in 1:ncol(contrast_matrix)) {
     contrast_name <- colnames(contrast_matrix)[i]
     top_genes <- topTable(fit_contrast, coef = i, adjust = "BH", number = Inf)
@@ -172,11 +173,32 @@ for (cluster_id in names(result$hub_genes)) {
     cat("Top Differentially Expressed Genes for", contrast_name, ":\n")
     print(top_genes)
     cat("\n")
+    
+    sig_genes <- rownames(top_genes)[top_genes$adj.P.Val < 0.05]
+    diff_exp_genes[[cluster_id]] <- unique(c(diff_exp_genes[[cluster_id]], sig_genes))
   }
   
   cat("\n")
 }
 
-sink()  
+sink()
+
+
+all_diff_exp_genes <- unique(unlist(diff_exp_genes))
+
+# make the differential expression summary
+sink("C:/Users/13046/Desktop/diff_exp_summary.txt")
+for (cluster_id in names(diff_exp_genes)) {
+  total_genes <- length(clusters[[cluster_id]])
+  num_unique_genes <- length(diff_exp_genes[[cluster_id]])
+  
+  percentage <- (num_unique_genes / total_genes) * 100
+  
+  cat("Cluster", cluster_id, ":\n")
+  cat("Total number of genes in the cluster:", total_genes, "\n")
+  cat("Number of unique differentially expressed genes:", num_unique_genes, "\n")
+  cat("Percentage of differentially expressed genes:", percentage, "%\n\n")
+}
+sink()
 
 # EOF
