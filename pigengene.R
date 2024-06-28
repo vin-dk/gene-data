@@ -44,12 +44,11 @@ if (length(clusters) == 0) {
   stop("Error: No non-empty clusters found.")
 }
 
-# Initialize lists to store row names and original matrices
-row_names_list <- list()
+# Initialize lists to store original matrices
 original_matrices <- list()
 
 # Function to calculate module eigengenes and hub genes
-calculateModuleEigengenes <- function(gene_data, clusters, row_names_list, original_matrices) {
+calculateModuleEigengenes <- function(gene_data, clusters, original_matrices) {
   hub_genes <- list()  # Initialize list to store hub genes
   eigengenes <- list()  # Initialize list to store eigengenes
   
@@ -57,9 +56,6 @@ calculateModuleEigengenes <- function(gene_data, clusters, row_names_list, origi
     cluster_genes <- clusters[[cluster_id]]
     
     cluster_rows <- gene_data[gene_data[[1]] %in% cluster_genes, ]
-    
-    # Store row names
-    row_names_list[[cluster_id]] <- cluster_rows[[1]]  # Assuming the first column has gene IDs
     
     # Store original untransposed matrix
     original_matrices[[cluster_id]] <- as.matrix(cluster_rows[, -1])  # Exclude gene_id
@@ -85,7 +81,7 @@ calculateModuleEigengenes <- function(gene_data, clusters, row_names_list, origi
     sorted_indices <- order(cor_coef, decreasing = TRUE)
     
     # Find top 15 hub genes
-    top_hub_genes <- row_names_list[[cluster_id]][sorted_indices[1:15]]
+    top_hub_genes <- cluster_genes[sorted_indices[1:15]]
     
     # Store hub genes with ranks
     hub_genes[[cluster_id]] <- data.frame(
@@ -98,13 +94,8 @@ calculateModuleEigengenes <- function(gene_data, clusters, row_names_list, origi
   return(list(hub_genes = hub_genes, eigengenes = eigengenes, original_matrices = original_matrices))
 }
 
-# Function to replace row numbers with gene IDs
-replaceRowNumbersWithGeneIDs <- function(row_numbers, row_names) {
-  return(row_names[row_numbers])
-}
-
 # Calculate module eigengenes and hub genes for clusters
-result <- calculateModuleEigengenes(gene_data, clusters, row_names_list, original_matrices)
+result <- calculateModuleEigengenes(gene_data, clusters, original_matrices)
 
 # Perform differential expression analysis for each cluster and redirect output to file
 sink("C:/Users/13046/Desktop/master_file.txt")
@@ -121,10 +112,23 @@ for (cluster_id in names(result$hub_genes)) {
   
   # Perform differential expression analysis
   original_matrix <- result$original_matrices[[cluster_id]]
-  row_names <- row_names_list[[cluster_id]]
+  row_names <- clusters[[cluster_id]]  # Directly use the cluster gene list as row names
   
   n_rows <- nrow(original_matrix)
   expression_matrix <- matrix(as.vector(t(original_matrix)), nrow = n_rows, byrow = TRUE)
+  
+  while (length(row_names) != nrow(expression_matrix)) {
+    
+    # Assign row names to the expression matrix
+    rownames(expression_matrix) <- row_names
+    
+    n_rows <- nrow(original_matrix)
+    expression_matrix <- matrix(as.vector(t(original_matrix)), nrow = n_rows, byrow = TRUE)
+  }
+  
+  
+  # Assign row names to the expression matrix
+  rownames(expression_matrix) <- row_names
   
   group <- factor(rep(c("Group1", "Group2", "Group3", "Group4"), each = 3))
   design <- model.matrix(~ 0 + group)
@@ -147,6 +151,8 @@ for (cluster_id in names(result$hub_genes)) {
   for (i in 1:ncol(contrast_matrix)) {
     contrast_name <- colnames(contrast_matrix)[i]
     top_genes <- topTable(fit_contrast, coef = i, adjust = "BH")
+    
+    # Filter based on adjusted p-value criterion
     filtered_genes <- top_genes[top_genes$adj.P.Val <= 0.5, ]
     
     cat("Top Differentially Expressed Genes for", contrast_name, ":\n")
