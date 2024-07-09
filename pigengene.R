@@ -8,7 +8,7 @@ gene_data <- read_excel("C:/Users/13046/Desktop/data_set.xlsx")
 options(max.print = 10000, width = 10000)
 
 # Path to cluster info
-file_path <- "C:/Users/13046/Desktop/Work Paper/trials/steps/Trial 1_1/david_file_1.txt"
+file_path <- "C:/Users/13046/Desktop/Work Paper/trials/steps/Trial 3_10/david_file_30.txt"
 lines <- readLines(file_path)
 
 # Initialize cluster list
