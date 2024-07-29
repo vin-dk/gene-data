@@ -1,16 +1,13 @@
-# Load necessary libraries
 library(readxl)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
 
-# Define the path to your Excel file
 file_path <- "C:/Users/13046/Desktop/data_set.xlsx"
 
 # Read in the gene expression data from the Excel file
 gene_data <- read_excel(file_path)
 
-# Define the new list of genes to be analyzed
 new_gene_list <- c("236306_at", "238999_at", "243255_at", "211835_at", 
                    "1563117_at", "237128_at", "217974_at", "223706_at", 
                    "241270_at", "230536_at", "228981_at", "233138_at", 
@@ -30,7 +27,6 @@ averaged_data <- filtered_gene_data %>%
   select(gene_ref, zero, three, six, twelve) %>%
   pivot_longer(cols = zero:twelve, names_to = "time_point", values_to = "expression")
 
-# Convert time_point to a factor with the correct order
 averaged_data$time_point <- factor(averaged_data$time_point, levels = c("zero", "three", "six", "twelve"), labels = c("0", "3", "6", "12"))
 
 # Plot the expression profiles
@@ -53,8 +49,5 @@ plot <- ggplot(averaged_data, aes(x = time_point, y = expression, group = gene_r
     plot.title = element_text(color = "white")
   )
 
-# Save the plot as an image file
+# Save
 ggsave("C:/Users/13046/Desktop/cluster7_exp_graph.png", plot)
-
-# Print a message indicating completion
-cat("Plot saved as 'cluster7_exp_graph.png' on your desktop.\n")
